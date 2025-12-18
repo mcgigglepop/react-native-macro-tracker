@@ -89,3 +89,11 @@ module "dynamodb" {
     }
   }
 }
+
+module "api-gw" {
+  source                = "../../modules/api-gw"
+  depends_on            = [module.dynamodb]
+  environment           = var.environment
+  application_name      = var.application_name
+  cognito_user_pool_arn = module.cognito.user_pool_arn
+}
