@@ -1,4 +1,9 @@
 ##################################
+# DATA SOURCES
+##################################
+data "aws_region" "current" {}
+
+##################################
 # REST API GATEWAY
 ##################################
 resource "aws_api_gateway_rest_api" "this" {
@@ -17,13 +22,23 @@ resource "aws_api_gateway_authorizer" "this" {
 # DEPLOYMENT + STAGE
 ##################################
 resource "aws_api_gateway_deployment" "this" {
-  depends_on = []
+  depends_on = [
+    aws_api_gateway_method.food_records_post,
+    aws_api_gateway_method.food_records_get,
+    aws_api_gateway_method.food_records_options,
+    aws_api_gateway_integration.food_records_post,
+    aws_api_gateway_integration.food_records_get,
+    aws_api_gateway_integration.food_records_options,
+  ]
 
   rest_api_id = aws_api_gateway_rest_api.this.id
 
   triggers = {
     redeployment = sha1(jsonencode({
       authorizer              = aws_api_gateway_authorizer.this.id,
+      food_records_post       = aws_api_gateway_method.food_records_post.id,
+      food_records_get        = aws_api_gateway_method.food_records_get.id,
+      food_records_options    = aws_api_gateway_method.food_records_options.id,
     }))
   }
 
@@ -101,4 +116,114 @@ resource "aws_api_gateway_account" "this" {
   depends_on = [
     aws_iam_role_policy_attachment.apigw_logs_policy
   ]
+}
+
+##################################
+# FOOD RECORDS ENDPOINTS
+##################################
+
+# Resource for /food-records
+resource "aws_api_gateway_resource" "food_records" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "food-records"
+}
+
+# OPTIONS method for CORS preflight
+resource "aws_api_gateway_method" "food_records_options" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.food_records.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "food_records_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records.id
+  http_method = aws_api_gateway_method.food_records_options.http_method
+
+  type = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "food_records_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records.id
+  http_method = aws_api_gateway_method.food_records_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "food_records_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records.id
+  http_method = aws_api_gateway_method.food_records_options.http_method
+  status_code = aws_api_gateway_method_response.food_records_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+# POST method for creating food records
+resource "aws_api_gateway_method" "food_records_post" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.food_records.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.this.id
+}
+
+resource "aws_api_gateway_integration" "food_records_post" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records.id
+  http_method = aws_api_gateway_method.food_records_post.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["create-food-record"]
+}
+
+resource "aws_lambda_permission" "food_records_post" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["create-food-record"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+# GET method for getting food records
+resource "aws_api_gateway_method" "food_records_get" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.food_records.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.this.id
+}
+
+resource "aws_api_gateway_integration" "food_records_get" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records.id
+  http_method = aws_api_gateway_method.food_records_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["get-food-records"]
+}
+
+resource "aws_lambda_permission" "food_records_get" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get-food-records"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
 }

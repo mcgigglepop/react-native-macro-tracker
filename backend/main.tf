@@ -23,6 +23,58 @@ locals {
         ]
       })
     }
+    create-food-record = {
+      zip         = "${path.module}/../dist/zips/createFoodRecord.zip"
+      description = "API Gateway Lambda function for creating food log records"
+      env         = { 
+        FOOD_RECORDS_TABLE = module.dynamodb.table_names["food-records"]
+      }
+      iam_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "dynamodb:PutItem"
+            ]
+            Resource = [
+              "arn:aws:logs:*:*:*",
+              module.dynamodb.table_arns["food-records"]
+            ]
+          }
+        ]
+      })
+      timeout = 10
+    }
+    get-food-records = {
+      zip         = "${path.module}/../dist/zips/getFoodRecords.zip"
+      description = "API Gateway Lambda function for getting food log records"
+      env         = { 
+        FOOD_RECORDS_TABLE = module.dynamodb.table_names["food-records"]
+      }
+      iam_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "dynamodb:Query"
+            ]
+            Resource = [
+              "arn:aws:logs:*:*:*",
+              module.dynamodb.table_arns["food-records"]
+            ]
+          }
+        ]
+      })
+      timeout = 10
+    }
   }
 }
 
@@ -91,9 +143,17 @@ module "dynamodb" {
 }
 
 module "api-gw" {
-  source                = "../../modules/api-gw"
-  depends_on            = [module.dynamodb]
+  source                = "./modules/api-gw"
+  depends_on            = [module.dynamodb, module.lambda]
   environment           = var.environment
   application_name      = var.application_name
   cognito_user_pool_arn = module.cognito.user_pool_arn
+  lambda_functions = {
+    "create-food-record" = module.lambda["create-food-record"].invoke_arn
+    "get-food-records"   = module.lambda["get-food-records"].invoke_arn
+  }
+  lambda_function_names = {
+    "create-food-record" = module.lambda["create-food-record"].function_name
+    "get-food-records"   = module.lambda["get-food-records"].function_name
+  }
 }
