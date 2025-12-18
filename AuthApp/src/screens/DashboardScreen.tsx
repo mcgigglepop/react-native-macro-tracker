@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import ApiService, { FoodRecord } from '../services/apiService';
 
 interface DashboardScreenProps {
   navigation: any;
@@ -16,13 +18,46 @@ interface DashboardScreenProps {
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const { logout } = useAuth();
+  const [foodRecords, setFoodRecords] = useState<FoodRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for UI display (no functionality)
-  const dailyCalories = 1850;
+  // Calculate totals from food records
+  const dailyCalories = foodRecords.reduce((sum, record) => sum + (record.calories || 0), 0);
   const macros = {
-    protein: 120,
-    carbs: 200,
-    fat: 65,
+    protein: foodRecords.reduce((sum, record) => sum + (record.protein || 0), 0),
+    carbs: foodRecords.reduce((sum, record) => sum + (record.carbs || 0), 0),
+    fat: foodRecords.reduce((sum, record) => sum + (record.fats || 0), 0),
+  };
+
+  // Fetch food records on mount and when screen comes into focus
+  useEffect(() => {
+    fetchFoodRecords();
+    
+    // Set up focus listener to refresh data when screen is focused
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchFoodRecords();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const fetchFoodRecords = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const records = await ApiService.getFoodRecords();
+      if (records !== null) {
+        setFoodRecords(records);
+      } else {
+        setError('Failed to fetch food records');
+      }
+    } catch (err) {
+      console.error('Error fetching food records:', err);
+      setError('Failed to load food records');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -45,41 +80,50 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
   // Calculate percentages for pie chart
   const totalMacroCalories = macros.protein * 4 + macros.carbs * 4 + macros.fat * 9;
-  const proteinPercent = (macros.protein * 4 / totalMacroCalories) * 100;
-  const carbsPercent = (macros.carbs * 4 / totalMacroCalories) * 100;
-  const fatPercent = (macros.fat * 9 / totalMacroCalories) * 100;
+  const proteinPercent = totalMacroCalories > 0 ? (macros.protein * 4 / totalMacroCalories) * 100 : 0;
+  const carbsPercent = totalMacroCalories > 0 ? (macros.carbs * 4 / totalMacroCalories) * 100 : 0;
+  const fatPercent = totalMacroCalories > 0 ? (macros.fat * 9 / totalMacroCalories) * 100 : 0;
 
   // Simple pie chart component
   const PieChart = () => {
+    const hasMacros = totalMacroCalories > 0;
+    
     return (
       <View style={styles.pieChartContainer}>
         <View style={styles.pieChartWrapper}>
-          {/* Circular pie chart visualization using stacked segments */}
+          {/* Circular pie chart visualization */}
           <View style={styles.pieChartOuter}>
-            {/* Protein slice - starts at 0 */}
-            <View 
-              style={[
-                styles.pieSegment,
-                styles.proteinSegment,
-                { flex: proteinPercent }
-              ]} 
-            />
-            {/* Carbs slice */}
-            <View 
-              style={[
-                styles.pieSegment,
-                styles.carbsSegment,
-                { flex: carbsPercent }
-              ]} 
-            />
-            {/* Fat slice */}
-            <View 
-              style={[
-                styles.pieSegment,
-                styles.fatSegment,
-                { flex: fatPercent }
-              ]} 
-            />
+            {hasMacros ? (
+              <>
+                {/* Protein slice */}
+                <View 
+                  style={[
+                    styles.pieSegment,
+                    styles.proteinSegment,
+                    { flex: proteinPercent }
+                  ]} 
+                />
+                {/* Carbs slice */}
+                <View 
+                  style={[
+                    styles.pieSegment,
+                    styles.carbsSegment,
+                    { flex: carbsPercent }
+                  ]} 
+                />
+                {/* Fat slice */}
+                <View 
+                  style={[
+                    styles.pieSegment,
+                    styles.fatSegment,
+                    { flex: fatPercent }
+                  ]} 
+                />
+              </>
+            ) : (
+              /* Empty state - gray circle */
+              <View style={styles.emptyPieChart} />
+            )}
           </View>
           {/* Center label overlay */}
           <View style={styles.pieChartCenterOverlay}>
@@ -91,15 +135,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: '#4A90E2' }]} />
-            <Text style={styles.legendText}>Protein: {macros.protein}g ({proteinPercent.toFixed(1)}%)</Text>
+            <Text style={styles.legendText}>
+              Protein: {macros.protein}g {hasMacros ? `(${proteinPercent.toFixed(1)}%)` : ''}
+            </Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: '#50C878' }]} />
-            <Text style={styles.legendText}>Carbs: {macros.carbs}g ({carbsPercent.toFixed(1)}%)</Text>
+            <Text style={styles.legendText}>
+              Carbs: {macros.carbs}g {hasMacros ? `(${carbsPercent.toFixed(1)}%)` : ''}
+            </Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: '#FF6B6B' }]} />
-            <Text style={styles.legendText}>Fat: {macros.fat}g ({fatPercent.toFixed(1)}%)</Text>
+            <Text style={styles.legendText}>
+              Fat: {macros.fat}g {hasMacros ? `(${fatPercent.toFixed(1)}%)` : ''}
+            </Text>
           </View>
         </View>
       </View>
@@ -116,45 +166,61 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Daily Calories Card */}
-        <View style={styles.caloriesCard}>
-          <Text style={styles.caloriesLabel}>Daily Calories Consumed</Text>
-          <Text style={styles.caloriesValue}>{dailyCalories}</Text>
-          <Text style={styles.caloriesUnit}>kcal</Text>
-        </View>
-
-        {/* Log Food Button */}
-        <TouchableOpacity 
-          style={styles.logFoodButton}
-          onPress={() => navigation.navigate('LogFood')}
-        >
-          <Text style={styles.logFoodButtonText}>Food Journal</Text>
-        </TouchableOpacity>
-
-        {/* Macros Card */}
-        <View style={styles.macrosCard}>
-          <Text style={styles.sectionTitle}>Total Daily Macros</Text>
-          <View style={styles.macrosGrid}>
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>{macros.protein}g</Text>
-              <Text style={styles.macroLabel}>Protein</Text>
-            </View>
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>{macros.carbs}g</Text>
-              <Text style={styles.macroLabel}>Carbs</Text>
-            </View>
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>{macros.fat}g</Text>
-              <Text style={styles.macroLabel}>Fat</Text>
-            </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading food records...</Text>
           </View>
-        </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchFoodRecords}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Daily Calories Card */}
+            <View style={styles.caloriesCard}>
+              <Text style={styles.caloriesLabel}>Daily Calories Consumed</Text>
+              <Text style={styles.caloriesValue}>{dailyCalories}</Text>
+              <Text style={styles.caloriesUnit}>kcal</Text>
+            </View>
 
-        {/* Pie Chart Card */}
-        <View style={styles.pieChartCard}>
-          <Text style={styles.sectionTitle}>Macro Breakdown</Text>
-          <PieChart />
-        </View>
+            {/* Log Food Button */}
+            <TouchableOpacity 
+              style={styles.logFoodButton}
+              onPress={() => navigation.navigate('LogFood')}
+            >
+              <Text style={styles.logFoodButtonText}>Food Journal</Text>
+            </TouchableOpacity>
+
+            {/* Macros Card */}
+            <View style={styles.macrosCard}>
+              <Text style={styles.sectionTitle}>Total Daily Macros</Text>
+              <View style={styles.macrosGrid}>
+                <View style={styles.macroItem}>
+                  <Text style={styles.macroValue}>{macros.protein}g</Text>
+                  <Text style={styles.macroLabel}>Protein</Text>
+                </View>
+                <View style={styles.macroItem}>
+                  <Text style={styles.macroValue}>{macros.carbs}g</Text>
+                  <Text style={styles.macroLabel}>Carbs</Text>
+                </View>
+                <View style={styles.macroItem}>
+                  <Text style={styles.macroValue}>{macros.fat}g</Text>
+                  <Text style={styles.macroLabel}>Fat</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Pie Chart Card */}
+            <View style={styles.pieChartCard}>
+              <Text style={styles.sectionTitle}>Macro Breakdown</Text>
+              <PieChart />
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -279,6 +345,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
   },
+  emptyPieChart: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#e0e0e0',
+    borderRadius: 100,
+  },
   pieSegment: {
     height: '100%',
   },
@@ -365,6 +437,40 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#dc3545',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
