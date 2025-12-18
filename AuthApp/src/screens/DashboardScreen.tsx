@@ -216,7 +216,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
             {/* Pie Chart Card */}
             <View style={styles.pieChartCard}>
-              <Text style={styles.sectionTitle}>Macro Breakdown</Text>
+              <Text style={styles.sectionTitle}>Calorie Breakdown by Macro</Text>
               <PieChart />
             </View>
           </>
