@@ -81,5 +81,11 @@ module "dynamodb" {
       global_secondary_indexes = []
       enable_ttl               = false
     }
+    food-records = {
+      hash_key                 = "user_id"
+      range_key                = "date_timestamp"
+      global_secondary_indexes = []
+      enable_ttl               = false
+    }
   }
 }
