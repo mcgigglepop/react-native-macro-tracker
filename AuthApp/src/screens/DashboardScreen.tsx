@@ -111,6 +111,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>Dashboard</Text>
+          <TouchableOpacity style={styles.logoutButtonMinimal} onPress={handleLogout}>
+            <Text style={styles.logoutButtonTextMinimal}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Daily Calories Card */}
@@ -119,6 +122,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           <Text style={styles.caloriesValue}>{dailyCalories}</Text>
           <Text style={styles.caloriesUnit}>kcal</Text>
         </View>
+
+        {/* Log Food Button */}
+        <TouchableOpacity 
+          style={styles.logFoodButton}
+          onPress={() => navigation.navigate('LogFood')}
+        >
+          <Text style={styles.logFoodButtonText}>Food Journal</Text>
+        </TouchableOpacity>
 
         {/* Macros Card */}
         <View style={styles.macrosCard}>
@@ -144,19 +155,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Macro Breakdown</Text>
           <PieChart />
         </View>
-
-        {/* Log Food Button */}
-        <TouchableOpacity 
-          style={styles.logFoodButton}
-          onPress={() => navigation.navigate('LogFood')}
-        >
-          <Text style={styles.logFoodButtonText}>Log Food</Text>
-        </TouchableOpacity>
-
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -171,6 +169,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
   },
@@ -354,25 +354,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  logoutButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: 12,
-    padding: 18,
-    alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#dc3545',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+  logoutButtonMinimal: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
   },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+  logoutButtonTextMinimal: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 
