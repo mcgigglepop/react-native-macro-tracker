@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   macrosCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 24,
+    padding: 18,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: {
@@ -290,10 +290,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   macrosGrid: {
     flexDirection: 'row',
@@ -304,13 +304,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   macroValue: {
-    fontSize: 28,
+    fontSize: 21,
     fontWeight: 'bold',
     color: '#007AFF',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   macroLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#666',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   pieChartCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 24,
+    padding: 18,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: {
@@ -333,15 +333,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pieChartWrapper: {
-    marginBottom: 20,
+    marginBottom: 15,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   pieChartOuter: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     flexDirection: 'row',
     overflow: 'hidden',
   },
@@ -367,13 +367,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -40 }, { translateY: -12 }],
+    transform: [{ translateX: -30 }, { translateY: -9 }],
     alignItems: 'center',
     justifyContent: 'center',
-    width: 80,
-    height: 24,
+    width: 60,
+    height: 18,
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 9,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   pieChartCenterText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
     color: '#333',
   },
@@ -394,16 +394,16 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 9,
   },
   legendColor: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 9,
   },
   legendText: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#333',
   },
   logFoodButton: {

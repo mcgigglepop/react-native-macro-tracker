@@ -90,26 +90,43 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
       return;
     }
 
-    const caloriesNum = parseFloat(calories);
     const proteinNum = parseFloat(protein);
     const carbsNum = parseFloat(carbs);
     const fatNum = parseFloat(fat);
 
-    if (isNaN(caloriesNum) || isNaN(proteinNum) || isNaN(carbsNum) || isNaN(fatNum)) {
-      Alert.alert('Error', 'Please enter valid numbers for all macros');
+    // Calories is optional - validate if provided
+    const caloriesNum = calories.trim() ? parseFloat(calories) : null;
+
+    if (isNaN(proteinNum) || isNaN(carbsNum) || isNaN(fatNum)) {
+      Alert.alert('Error', 'Please enter valid numbers for protein, carbs, and fat');
       return;
     }
 
-    if (caloriesNum < 0 || proteinNum < 0 || carbsNum < 0 || fatNum < 0) {
+    if (caloriesNum !== null && isNaN(caloriesNum)) {
+      Alert.alert('Error', 'Please enter a valid number for calories or leave it empty');
+      return;
+    }
+
+    if (proteinNum < 0 || carbsNum < 0 || fatNum < 0) {
       Alert.alert('Error', 'Macro values cannot be negative');
       return;
     }
+
+    if (caloriesNum !== null && caloriesNum < 0) {
+      Alert.alert('Error', 'Calories cannot be negative');
+      return;
+    }
+
+    // Auto-calculate calories if not provided: (protein * 4) + (carbs * 4) + (fat * 9)
+    const calculatedCalories = caloriesNum !== null 
+      ? caloriesNum 
+      : (proteinNum * 4) + (carbsNum * 4) + (fatNum * 9);
 
     try {
       setSaving(true);
       const success = await ApiService.createFoodRecord({
         name: foodName.trim(),
-        calories: caloriesNum,
+        calories: calculatedCalories,
         protein: proteinNum,
         carbs: carbsNum,
         fat: fatNum,
@@ -264,14 +281,17 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Calories</Text>
+                <Text style={styles.inputLabel}>Calories (optional)</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter calories"
+                  placeholder="Leave empty to auto-calculate"
                   value={calories}
                   onChangeText={setCalories}
                   keyboardType="numeric"
                 />
+                <Text style={styles.inputHint}>
+                  Will be calculated from macros if not provided
+                </Text>
               </View>
 
               <View style={styles.inputGroup}>
@@ -562,6 +582,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#e9ecef',
+  },
+  inputHint: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   saveButton: {
     backgroundColor: '#007AFF',

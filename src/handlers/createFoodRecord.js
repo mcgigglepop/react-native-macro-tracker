@@ -61,7 +61,7 @@ export const handler = async (event) => {
 
     // Validate required fields
     const { name, calories, protein, carbs, fat, quantity } = body;
-    if (!name || calories === undefined || protein === undefined || carbs === undefined || fat === undefined) {
+    if (!name || protein === undefined || carbs === undefined || fat === undefined) {
       return {
         statusCode: 400,
         headers: {
@@ -70,13 +70,13 @@ export const handler = async (event) => {
         },
         body: JSON.stringify({
           error: "Bad Request",
-          message: "Missing required fields: name, calories, protein, carbs, fat",
+          message: "Missing required fields: name, protein, carbs, fat",
         }),
       };
     }
 
-    // Validate numeric values
-    if (isNaN(calories) || isNaN(protein) || isNaN(carbs) || isNaN(fat)) {
+    // Validate numeric values for required fields
+    if (isNaN(protein) || isNaN(carbs) || isNaN(fat)) {
       return {
         statusCode: 400,
         headers: {
@@ -85,10 +85,30 @@ export const handler = async (event) => {
         },
         body: JSON.stringify({
           error: "Bad Request",
-          message: "calories, protein, carbs, and fat must be numbers",
+          message: "protein, carbs, and fat must be numbers",
         }),
       };
     }
+
+    // Validate calories if provided
+    if (calories !== undefined && calories !== null && isNaN(calories)) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({
+          error: "Bad Request",
+          message: "calories must be a number if provided",
+        }),
+      };
+    }
+
+    // Auto-calculate calories if not provided: (protein * 4) + (carbs * 4) + (fat * 9)
+    const calculatedCalories = calories !== undefined && calories !== null
+      ? Number(calories)
+      : (Number(protein) * 4) + (Number(carbs) * 4) + (Number(fat) * 9);
 
     // Get current date in YYYY-MM-DD format
     const now = new Date();
@@ -106,7 +126,7 @@ export const handler = async (event) => {
       user_id: userId,
       date_timestamp: dateTimestamp,
       name: name.trim(),
-      calories: Number(calories),
+      calories: calculatedCalories,
       protein: Number(protein),
       carbs: Number(carbs),
       fat: Number(fat),
