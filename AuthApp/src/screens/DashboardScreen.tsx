@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   caloriesCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 24,
+    padding: 18,
     alignItems: 'center',
     marginBottom: 20,
     shadowColor: '#000',
@@ -261,18 +261,18 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   caloriesLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   caloriesValue: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#007AFF',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   caloriesUnit: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#999',
   },
   macrosCard: {

@@ -95,7 +95,7 @@ export class ApiService {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(foodRecord)
@@ -142,7 +142,7 @@ export class ApiService {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

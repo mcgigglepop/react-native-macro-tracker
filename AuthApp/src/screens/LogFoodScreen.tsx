@@ -121,11 +121,12 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
         await fetchFoodRecords();
         Alert.alert('Success', 'Food record saved successfully');
       } else {
-        Alert.alert('Error', 'Failed to save food record');
+        Alert.alert('Error', 'Failed to save food record. Please try again.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving food record:', err);
-      Alert.alert('Error', 'Failed to save food record');
+      const errorMessage = err?.message || 'Failed to save food record. Please check your connection and try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setSaving(false);
     }
