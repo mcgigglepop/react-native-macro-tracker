@@ -134,19 +134,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         {/* Legend */}
         <View style={styles.legend}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#4A90E2' }]} />
+            <View style={[styles.legendColor, { backgroundColor: '#DC3545' }]} />
             <Text style={styles.legendText}>
               Protein: {macros.protein}g {hasMacros ? `(${proteinPercent.toFixed(1)}%)` : ''}
             </Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#50C878' }]} />
+            <View style={[styles.legendColor, { backgroundColor: '#2196F3' }]} />
             <Text style={styles.legendText}>
               Carbs: {macros.carbs}g {hasMacros ? `(${carbsPercent.toFixed(1)}%)` : ''}
             </Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#FF6B6B' }]} />
+            <View style={[styles.legendColor, { backgroundColor: '#FFC107' }]} />
             <Text style={styles.legendText}>
               Fat: {macros.fat}g {hasMacros ? `(${fatPercent.toFixed(1)}%)` : ''}
             </Text>
@@ -355,13 +355,13 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   proteinSegment: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#DC3545',
   },
   carbsSegment: {
-    backgroundColor: '#50C878',
+    backgroundColor: '#2196F3',
   },
   fatSegment: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FFC107',
   },
   pieChartCenterOverlay: {
     position: 'absolute',
