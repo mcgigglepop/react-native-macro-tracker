@@ -1,1 +1,1 @@
-# react-native-macro-tracker
+# Macro Tracker - React Native App

@@ -2,8 +2,8 @@ import { CognitoUserPool } from 'amazon-cognito-identity-js';
 
 // Shared Cognito Configuration
 export const COGNITO_CONFIG = {
-  UserPoolId: 'us-west-2_isZa41XyP',
-  ClientId: '1v420tr0j9nst48age3pat5tf3',
+  UserPoolId: 'us-west-2_IMBNxCBXo',
+  ClientId: '5m2aoiq58569jhmvofv1k6lmi1',
   Region: 'us-west-2'
 };
 

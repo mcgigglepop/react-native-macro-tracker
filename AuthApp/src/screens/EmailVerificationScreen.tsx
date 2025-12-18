@@ -2,45 +2,46 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
   TextInput,
+  TouchableOpacity,
+  StyleSheet,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 import CognitoService from '../services/cognitoService';
 
 interface EmailVerificationScreenProps {
   navigation: any;
+  route: any;
 }
 
-interface RouteParams {
-  email: string;
-}
-
-const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navigation }) => {
-  const route = useRoute();
-  const { email } = route.params as RouteParams;
-  
-  const [verificationCode, setVerificationCode] = useState('');
+const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navigation, route }) => {
+  const email = route?.params?.email || '';
+  const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
-  const handleVerifyEmail = async () => {
-    if (!verificationCode.trim()) {
+  const handleVerify = async () => {
+    if (!code) {
       Alert.alert('Error', 'Please enter the verification code');
+      return;
+    }
+
+    if (code.length < 6) {
+      Alert.alert('Error', 'Verification code must be 6 digits');
       return;
     }
 
     setIsLoading(true);
     try {
-      await CognitoService.confirmRegistration(email, verificationCode);
+      await CognitoService.confirmRegistration(email, code);
       Alert.alert(
         'Success',
-        'Email verified successfully! You can now login.',
+        'Email verified successfully! You can now log in.',
         [
           {
             text: 'OK',
@@ -48,99 +49,83 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({ navig
           }
         ]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Verification error:', error);
-      Alert.alert('Error', 'Invalid verification code. Please try again.');
+      Alert.alert('Error', error.message || 'Invalid verification code. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleResendCode = async () => {
-    setResendLoading(true);
+    setIsResending(true);
     try {
       await CognitoService.resendConfirmationCode(email);
-      Alert.alert('Success', 'Verification code has been resent to your email.');
-    } catch (error) {
-      console.error('Resend error:', error);
-      Alert.alert('Error', 'Failed to resend verification code. Please try again.');
+      Alert.alert('Success', 'Verification code has been resent to your email');
+    } catch (error: any) {
+      console.error('Resend code error:', error);
+      Alert.alert('Error', error.message || 'Failed to resend code. Please try again.');
     } finally {
-      setResendLoading(false);
+      setIsResending(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
+        <View style={styles.content}>
           <Text style={styles.title}>Verify Your Email</Text>
           <Text style={styles.subtitle}>
-            We've sent a verification code to:
+            We've sent a verification code to{'\n'}
+            <Text style={styles.email}>{email}</Text>
           </Text>
-          <Text style={styles.email}>{email}</Text>
-        </View>
 
-        <View style={styles.verificationContainer}>
-          <Text style={styles.sectionTitle}>Enter Verification Code</Text>
-          
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter 6-digit code"
-              value={verificationCode}
-              onChangeText={setVerificationCode}
-              keyboardType="numeric"
-              maxLength={6}
-              autoFocus
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter 6-digit code"
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoFocus
+          />
 
           <TouchableOpacity
-            style={[styles.verifyButton, isLoading && styles.disabledButton]}
-            onPress={handleVerifyEmail}
+            style={[styles.button, isLoading && styles.buttonDisabled]}
+            onPress={handleVerify}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.verifyButtonText}>Verify Email</Text>
+              <Text style={styles.buttonText}>Verify Email</Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.resendContainer}>
-            <Text style={styles.resendText}>Didn't receive the code?</Text>
-            <TouchableOpacity
-              style={styles.resendButton}
-              onPress={handleResendCode}
-              disabled={resendLoading}
-            >
-              {resendLoading ? (
-                <ActivityIndicator size="small" color="#007AFF" />
-              ) : (
-                <Text style={styles.resendButtonText}>Resend Code</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
+          <TouchableOpacity
+            style={styles.resendButton}
+            onPress={handleResendCode}
+            disabled={isResending}
+          >
+            {isResending ? (
+              <ActivityIndicator color="#007AFF" />
+            ) : (
+              <Text style={styles.resendButtonText}>Resend Code</Text>
+            )}
+          </TouchableOpacity>
 
-        <View style={styles.helpContainer}>
-          <Text style={styles.helpTitle}>Need Help?</Text>
-          <Text style={styles.helpText}>
-            • Check your email inbox and spam folder{'\n'}
-            • Make sure you entered the correct email address{'\n'}
-            • Wait a few minutes before requesting a new code{'\n'}
-            • Contact support if you continue to have issues
-          </Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.backButtonText}>Back to Login</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>Back to Registration</Text>
-        </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -150,35 +135,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   scrollContainer: {
-    padding: 16,
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  email: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#007AFF',
-    textAlign: 'center',
-  },
-  verificationContainer: {
+  content: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
+    padding: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -188,95 +152,67 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  sectionTitle: {
-    fontSize: 18,
+  title: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  inputContainer: {
-    marginBottom: 24,
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 32,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  email: {
+    fontWeight: '600',
+    color: '#007AFF',
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
+    backgroundColor: '#f8f9fa',
     borderRadius: 8,
     padding: 16,
     fontSize: 18,
     textAlign: 'center',
-    letterSpacing: 2,
-    backgroundColor: '#fafafa',
+    letterSpacing: 8,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
-  verifyButton: {
+  button: {
     backgroundColor: '#007AFF',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
-  verifyButtonText: {
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
-  disabledButton: {
-    backgroundColor: '#ccc',
-  },
-  resendContainer: {
-    alignItems: 'center',
-  },
-  resendText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
   resendButton: {
-    padding: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   resendButtonText: {
     color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  helpContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  helpTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  helpText: {
     fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
   },
   backButton: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
   },
   backButtonText: {
     color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
   },
 });
 
-export default EmailVerificationScreen; 
+export default EmailVerificationScreen;

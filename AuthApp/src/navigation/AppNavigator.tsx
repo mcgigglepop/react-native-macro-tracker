@@ -6,10 +6,7 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import DashboardScreen from '../screens/DashboardScreen';
-import CaloriesScreen from '../screens/CaloriesScreen';
-import WorkoutsScreen from '../screens/WorkoutsScreen';
-import WorkoutTrackingScreen from '../screens/WorkoutTrackingScreen';
-import ProfileSettingsScreen from '../screens/ProfileSettingsScreen';
+import FoodLogScreen from '../screens/FoodLogScreen';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 const Stack = createStackNavigator();
@@ -73,29 +70,8 @@ const AppNavigator: React.FC = () => {
               }}
             />
             <Stack.Screen 
-              name="Calories" 
-              component={CaloriesScreen}
-              options={{
-                animationEnabled: false,
-              }}
-            />
-            <Stack.Screen 
-              name="Workouts" 
-              component={WorkoutsScreen}
-              options={{
-                animationEnabled: false,
-              }}
-            />
-            <Stack.Screen 
-              name="WorkoutTracking" 
-              component={WorkoutTrackingScreen}
-              options={{
-                animationEnabled: false,
-              }}
-            />
-            <Stack.Screen 
-              name="ProfileSettings" 
-              component={ProfileSettingsScreen}
+              name="FoodLog" 
+              component={FoodLogScreen}
               options={{
                 animationEnabled: false,
               }}

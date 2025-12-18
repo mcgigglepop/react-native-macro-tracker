@@ -3,6 +3,11 @@ variable "name" {
   type        = string
 }
 
+variable "environment" {
+  description = "Environment name (dev, staging, prod)"
+  type        = string
+}
+
 variable "user_pool_id" {
   description = "Cognito User Pool ID"
   type        = string
@@ -13,13 +18,13 @@ variable "user_pool_arn" {
   type        = string
 }
 
-variable "log_food_function" {
-  description = "Lambda function ARN for log-food"
+variable "log_food_invoke_arn" {
+  description = "Lambda invoke ARN for log-food"
   type        = string
 }
 
-variable "get_food_logs_function" {
-  description = "Lambda function ARN for get-food-logs"
+variable "get_food_logs_invoke_arn" {
+  description = "Lambda invoke ARN for get-food-logs"
   type        = string
 }
 

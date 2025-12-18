@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "us-west-2"
 }
 
+variable "aws_profile" {
+  description = "AWS profile"
+  type        = string
+  default     = "217797467952_AdministratorAccess"
+}
+
 variable "application_name" {
   description = "Application name"
   type        = string

@@ -3,11 +3,16 @@ import CognitoService from './cognitoService';
 import userPool from './cognitoConfig';
 
 // API Configuration
+// IMPORTANT: Update baseUrl to match your deployed API Gateway URL from terraform output
+// Run: cd ../../backend/terraform && terraform output api_gateway_url
+// The API Gateway MUST have Cognito authorizer configured (not AWS_IAM)
 const API_CONFIG = {
-  baseUrl: 'https://am0fzdeuje.execute-api.us-west-2.amazonaws.com/dev',
+  // TODO: Replace with your terraform output: terraform output api_gateway_url
+  // Example: 'https://jle99e2dm8.execute-api.us-west-2.amazonaws.com/prod'
+  baseUrl: process.env.API_BASE_URL || 'https://5roxcutyn4.execute-api.us-west-2.amazonaws.com/prod',
   endpoints: {
     userData: '/user-data',
-    food: '/calorie-tracking',
+    food: '/calorie-tracking', // Matches the existing API Gateway endpoint
     workoutNames: '/workout-names',
     workout: '/workout',
     workoutTracking: '/workout-tracking'
@@ -614,4 +619,4 @@ export class ApiService {
   }
 }
 
-export default ApiService; 
+export default ApiService;

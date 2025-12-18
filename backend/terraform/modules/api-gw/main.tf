@@ -6,12 +6,11 @@ resource "aws_api_gateway_rest_api" "this" {
 }
 
 resource "aws_api_gateway_authorizer" "this" {
-  name                             = "${var.name}-cognito-auth"
-  rest_api_id                      = aws_api_gateway_rest_api.this.id
-  identity_source                  = "method.request.header.Authorization"
-  type                             = "COGNITO_USER_POOLS"
-  provider_arns                    = [var.user_pool_arn]
-  authorizer_result_ttl_in_seconds = 300
+  name            = "${var.name}-cognito-auth"
+  rest_api_id     = aws_api_gateway_rest_api.this.id
+  identity_source = "method.request.header.Authorization"
+  type            = "COGNITO_USER_POOLS"
+  provider_arns   = [var.user_pool_arn]
 }
 
 ##################################
@@ -37,7 +36,7 @@ resource "aws_api_gateway_integration" "food_logs_post" {
   http_method             = aws_api_gateway_method.food_logs_post.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.log_food_function}/invocations"
+  uri                     = var.log_food_invoke_arn
 }
 
 resource "aws_api_gateway_method_response" "food_logs_post" {
@@ -119,7 +118,7 @@ resource "aws_api_gateway_integration" "food_logs_get" {
   http_method             = aws_api_gateway_method.food_logs_get.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.get_food_logs_function}/invocations"
+  uri                     = var.get_food_logs_invoke_arn
 }
 
 resource "aws_api_gateway_method_response" "food_logs_get" {
@@ -159,7 +158,7 @@ resource "aws_api_gateway_deployment" "this" {
   triggers = {
     redeployment = sha1(jsonencode({
       food_logs_post    = aws_api_gateway_integration.food_logs_post.id
-      food_logs_get    = aws_api_gateway_integration.food_logs_get.id
+      food_logs_get     = aws_api_gateway_integration.food_logs_get.id
       food_logs_options = aws_api_gateway_integration.food_logs_options.id
     }))
   }
@@ -172,7 +171,38 @@ resource "aws_api_gateway_deployment" "this" {
 resource "aws_api_gateway_stage" "this" {
   deployment_id = aws_api_gateway_deployment.this.id
   rest_api_id   = aws_api_gateway_rest_api.this.id
-  stage_name    = "prod"
+  stage_name    = var.environment
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.this.arn
+    format = jsonencode({
+      requestId         = "$context.requestId",
+      extendedRequestId = "$context.extendedRequestId",
+      sourceIp          = "$context.identity.sourceIp",
+      userAgent         = "$context.identity.userAgent",
+      requestTime       = "$context.requestTime",
+      httpMethod        = "$context.httpMethod",
+      path              = "$context.path",
+      status            = "$context.status",
+      authorizerError   = "$context.authorizer.error"
+    })
+  }
+
+  depends_on = [
+    aws_api_gateway_account.this
+  ]
+}
+
+resource "aws_api_gateway_method_settings" "this" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  stage_name  = aws_api_gateway_stage.this.stage_name
+  method_path = "*/*"
+
+  settings {
+    logging_level      = "INFO"
+    metrics_enabled    = true
+    data_trace_enabled = true
+  }
 }
 
 ##################################

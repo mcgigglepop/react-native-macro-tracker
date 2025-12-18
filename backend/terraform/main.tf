@@ -175,10 +175,11 @@ module "api_gateway" {
   source = "./modules/api-gw"
 
   name                 = "${var.application_name}-${var.environment}"
+  environment          = var.environment
   user_pool_id         = module.cognito.user_pool_id
   user_pool_arn        = module.cognito.user_pool_arn
-  log_food_function    = module.lambda["log-food"].function_arn
-  get_food_logs_function = module.lambda["get-food-logs"].function_arn
+  log_food_invoke_arn  = module.lambda["log-food"].invoke_arn
+  get_food_logs_invoke_arn = module.lambda["get-food-logs"].invoke_arn
 
   tags = var.tags
 }
