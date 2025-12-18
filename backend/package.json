@@ -1,0 +1,25 @@
+{
+  "name": "@macro-tracker/backend",
+  "version": "1.0.0",
+  "description": "Backend Lambda functions for Macro Tracker",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "zip": "node scripts/zip.mjs",
+    "package": "npm run build && npm run zip",
+    "terraform:fmt": "node scripts/terraform-fmt.mjs",
+    "deploy:dev": "cd terraform && terraform init -backend-config=dev.config && terraform apply -var-file=dev.tfvars",
+    "destroy:dev": "cd terraform && terraform init -backend-config=dev.config && terraform destroy -var-file=dev.tfvars"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0",
+    "zip-a-folder": "^3.1.6"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.624.0",
+    "@aws-sdk/lib-dynamodb": "^3.624.0"
+  }
+}
