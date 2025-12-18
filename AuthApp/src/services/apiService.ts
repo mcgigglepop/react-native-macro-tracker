@@ -69,6 +69,56 @@ export class ApiService {
   }
 
   /**
+   * Create a new food record
+   * @param foodRecord Food record data to create
+   */
+  static async createFoodRecord(foodRecord: {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    quantity?: string;
+  }): Promise<boolean> {
+    try {
+      console.log('Creating food record:', foodRecord);
+      const token = await this.getSessionToken();
+      
+      if (!token) {
+        console.error('No valid session token available');
+        throw new Error('No valid session token');
+      }
+
+      const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.foodRecords}`;
+      console.log('Making POST request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(foodRecord)
+      });
+
+      console.log('Create food record response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Create food record error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Create food record response:', data);
+      return true;
+    } catch (error) {
+      console.error('Error creating food record:', error);
+      return false;
+    }
+  }
+
+  /**
    * Get food records for the current day (or specified date)
    * @param date Optional date in YYYY-MM-DD format (defaults to today)
    */

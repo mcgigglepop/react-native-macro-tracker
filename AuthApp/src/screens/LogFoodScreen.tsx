@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,11 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
+import ApiService, { FoodRecord } from '../services/apiService';
 
 interface LogFoodScreenProps {
   navigation: any;
@@ -23,13 +26,47 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [foodRecords, setFoodRecords] = useState<FoodRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  // Dummy data for UI display
-  const dailyCalories = 1850;
+  // Calculate totals from food records
+  const dailyCalories = foodRecords.reduce((sum, record) => sum + (record.calories || 0), 0);
   const macros = {
-    protein: 120,
-    carbs: 200,
-    fat: 65,
+    protein: foodRecords.reduce((sum, record) => sum + (record.protein || 0), 0),
+    carbs: foodRecords.reduce((sum, record) => sum + (record.carbs || 0), 0),
+    fat: foodRecords.reduce((sum, record) => sum + (record.fats || 0), 0),
+  };
+
+  // Fetch food records on mount and when screen comes into focus
+  useEffect(() => {
+    fetchFoodRecords();
+    
+    // Set up focus listener to refresh data when screen is focused
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchFoodRecords();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const fetchFoodRecords = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const records = await ApiService.getFoodRecords();
+      if (records !== null) {
+        setFoodRecords(records);
+      } else {
+        setError('Failed to fetch food records');
+      }
+    } catch (err) {
+      console.error('Error fetching food records:', err);
+      setError('Failed to load food records');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenModal = () => {
@@ -46,59 +83,53 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
     setFat('');
   };
 
-  const handleSaveFood = () => {
-    // TODO: Save food logic will go here
-    handleCloseModal();
-  };
+  const handleSaveFood = async () => {
+    // Validate input
+    if (!foodName.trim()) {
+      Alert.alert('Error', 'Please enter a food name');
+      return;
+    }
 
-  // Dummy food list data
-  const foodsLogged = [
-    {
-      id: '1',
-      name: 'Grilled Chicken Breast',
-      calories: 231,
-      protein: 43.5,
-      carbs: 0,
-      fat: 5,
-      quantity: '200g',
-    },
-    {
-      id: '2',
-      name: 'Brown Rice',
-      calories: 216,
-      protein: 5,
-      carbs: 45,
-      fat: 1.8,
-      quantity: '1 cup',
-    },
-    {
-      id: '3',
-      name: 'Broccoli',
-      calories: 55,
-      protein: 3.7,
-      carbs: 11,
-      fat: 0.6,
-      quantity: '1 cup',
-    },
-    {
-      id: '4',
-      name: 'Greek Yogurt',
-      calories: 130,
-      protein: 11,
-      carbs: 9,
-      fat: 5,
-      quantity: '1 cup',
-    },
-    {
-      id: '5',
-      name: 'Banana',
-      calories: 105,
-      protein: 1.3,
-      carbs: 27,
-      fat: 0.4,
-      quantity: '1 medium',
-    },
-  ];
+    const caloriesNum = parseFloat(calories);
+    const proteinNum = parseFloat(protein);
+    const carbsNum = parseFloat(carbs);
+    const fatNum = parseFloat(fat);
+
+    if (isNaN(caloriesNum) || isNaN(proteinNum) || isNaN(carbsNum) || isNaN(fatNum)) {
+      Alert.alert('Error', 'Please enter valid numbers for all macros');
+      return;
+    }
+
+    if (caloriesNum < 0 || proteinNum < 0 || carbsNum < 0 || fatNum < 0) {
+      Alert.alert('Error', 'Macro values cannot be negative');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const success = await ApiService.createFoodRecord({
+        name: foodName.trim(),
+        calories: caloriesNum,
+        protein: proteinNum,
+        carbs: carbsNum,
+        fat: fatNum,
+      });
+
+      if (success) {
+        handleCloseModal();
+        // Refresh food records
+        await fetchFoodRecords();
+        Alert.alert('Success', 'Food record saved successfully');
+      } else {
+        Alert.alert('Error', 'Failed to save food record');
+      }
+    } catch (err) {
+      console.error('Error saving food record:', err);
+      Alert.alert('Error', 'Failed to save food record');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -107,7 +138,7 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Log Food</Text>
+        <Text style={styles.title}>Food Journal</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -155,32 +186,50 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
         style={styles.foodsScrollView}
         contentContainerStyle={styles.foodsScrollContent}
       >
-        {foodsLogged.map((food) => (
-          <View key={food.id} style={styles.foodItem}>
-            <View style={styles.foodHeader}>
-              <Text style={styles.foodName}>{food.name}</Text>
-              <Text style={styles.foodQuantity}>{food.quantity}</Text>
-            </View>
-            <View style={styles.foodMacros}>
-              <View style={styles.foodMacroItem}>
-                <Text style={styles.foodMacroLabel}>Calories</Text>
-                <Text style={styles.foodMacroValue}>{food.calories}</Text>
-              </View>
-              <View style={styles.foodMacroItem}>
-                <Text style={styles.foodMacroLabel}>Protein</Text>
-                <Text style={styles.foodMacroValue}>{food.protein}g</Text>
-              </View>
-              <View style={styles.foodMacroItem}>
-                <Text style={styles.foodMacroLabel}>Carbs</Text>
-                <Text style={styles.foodMacroValue}>{food.carbs}g</Text>
-              </View>
-              <View style={styles.foodMacroItem}>
-                <Text style={styles.foodMacroLabel}>Fat</Text>
-                <Text style={styles.foodMacroValue}>{food.fat}g</Text>
-              </View>
-            </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading food records...</Text>
           </View>
-        ))}
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchFoodRecords}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : foodRecords.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No food records for today</Text>
+            <Text style={styles.emptySubtext}>Tap "+ Log Food" to add your first entry</Text>
+          </View>
+        ) : (
+          foodRecords.map((food, index) => (
+            <View key={`${food.date}-${food.name}-${index}`} style={styles.foodItem}>
+              <View style={styles.foodHeader}>
+                <Text style={styles.foodName}>{food.name}</Text>
+              </View>
+              <View style={styles.foodMacros}>
+                <View style={styles.foodMacroItem}>
+                  <Text style={styles.foodMacroLabel}>Calories</Text>
+                  <Text style={styles.foodMacroValue}>{food.calories}</Text>
+                </View>
+                <View style={styles.foodMacroItem}>
+                  <Text style={styles.foodMacroLabel}>Protein</Text>
+                  <Text style={styles.foodMacroValue}>{food.protein}g</Text>
+                </View>
+                <View style={styles.foodMacroItem}>
+                  <Text style={styles.foodMacroLabel}>Carbs</Text>
+                  <Text style={styles.foodMacroValue}>{food.carbs}g</Text>
+                </View>
+                <View style={styles.foodMacroItem}>
+                  <Text style={styles.foodMacroLabel}>Fat</Text>
+                  <Text style={styles.foodMacroValue}>{food.fats}g</Text>
+                </View>
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
 
       {/* Modal for Logging Food */}
@@ -258,10 +307,15 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
               </View>
 
               <TouchableOpacity 
-                style={styles.saveButton}
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
                 onPress={handleSaveFood}
+                disabled={saving}
               >
-                <Text style={styles.saveButtonText}>Save Food</Text>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Food</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -519,6 +573,62 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#dc3545',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginTop: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 
