@@ -1,0 +1,33 @@
+{
+  "name": "react-native-macro-tracker",
+  "version": "1.0.0",
+  "description": "API for Macro Tracker React Native App",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "deploy:dev": "cd backend && terraform init -backend-config=dev.config && terraform apply -var-file=dev.tfvars",
+    "destroy:dev": "cd backend && terraform init -backend-config=dev.config && terraform destroy -var-file=dev.tfvars",
+    "build": "node scripts/build.mjs",
+    "zip": "node scripts/zip.mjs",
+    "package": "npm run build && npm run zip",
+    "terraform:fmt": "node scripts/terraform-fmt.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0",
+    "zip-a-folder": "^3.1.6"
+  },
+  "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.624.0",
+    "@aws-sdk/client-dynamodb": "^3.624.0",
+    "@aws-sdk/client-eventbridge": "^3.624.0",
+    "@aws-sdk/client-lambda": "^3.953.0",
+    "@aws-sdk/client-s3": "^3.624.0",
+    "@aws-sdk/client-secrets-manager": "^3.624.0",
+    "@aws-sdk/client-sfn": "^3.624.0",
+    "@aws-sdk/client-sqs": "^3.624.0",
+    "@aws-sdk/lib-dynamodb": "^3.624.0",
+    "ethers": "^6.13.0"
+  }
+}

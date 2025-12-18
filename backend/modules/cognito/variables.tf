@@ -1,44 +1,3 @@
-######################
-# AWS Provider Variables
-######################
-
-variable "aws_region" {
-  description = "AWS region where resources will be created"
-  type        = string
-  default     = "us-west-2"
-}
-
-variable "aws_profile" {
-  description = "AWS profile to use"
-  type        = string
-  default     = "217797467952_AdministratorAccess"
-}
-
-######################
-# Common Variables
-######################
-
-variable "tags" {
-  description = "Tags to apply to all resources"
-  type        = map(string)
-  default     = {}
-}
-
-variable "application_name" {
-  description = "Name of the application"
-  type        = string
-}
-
-variable "environment" {
-  description = "Environment"
-  type        = string
-}
-
-
-######################
-# Cognito Variables
-######################
-
 variable "user_pool_name" {
   description = "Name for the Cognito User Pool"
   type        = string
@@ -114,6 +73,12 @@ variable "refresh_token_validity_days" {
   default     = 30
 }
 
+variable "tags" {
+  description = "Tags to apply to all resources"
+  type        = map(string)
+  default     = {}
+}
+
 variable "allowed_oauth_flows" {
   description = "Allowed OAuth flows"
   type        = list(string)
@@ -146,6 +111,18 @@ variable "supported_identity_providers" {
 
 variable "domain_name" {
   description = "Domain name"
+  type        = string
+  default     = null
+}
+
+variable "post_confirmation_arn" {
+  description = "ARN of the Lambda function to invoke after user confirmation"
+  type        = string
+  default     = null
+}
+
+variable "post_confirmation_function_name" {
+  description = "Name of the Lambda function to invoke after user confirmation"
   type        = string
   default     = null
 }
