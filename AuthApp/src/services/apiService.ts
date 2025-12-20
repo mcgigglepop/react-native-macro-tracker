@@ -84,6 +84,7 @@ export class ApiService {
   }): Promise<boolean> {
     try {
       console.log('Creating food record:', foodRecord);
+      console.log('Date being sent:', foodRecord.date);
       const token = await this.getSessionToken();
       
       if (!token) {

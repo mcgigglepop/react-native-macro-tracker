@@ -61,6 +61,14 @@ export const handler = async (event) => {
 
     // Validate required fields
     const { name, calories, protein, carbs, fat, quantity, date } = body;
+    
+    console.log(JSON.stringify({
+      at: "request_body_received",
+      requestId,
+      hasDate: date !== undefined && date !== null,
+      date: date,
+      bodyKeys: Object.keys(body),
+    }));
     if (!name || protein === undefined || carbs === undefined || fat === undefined) {
       return {
         statusCode: 400,
@@ -112,7 +120,15 @@ export const handler = async (event) => {
 
     // Get date from request body or use current date
     let recordDate;
-    if (date) {
+    console.log(JSON.stringify({
+      at: "date_extraction",
+      requestId,
+      dateFromBody: date,
+      dateType: typeof date,
+      isDateTruthy: !!date,
+    }));
+    
+    if (date !== undefined && date !== null && date !== '') {
       // Validate date format (YYYY-MM-DD)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return {

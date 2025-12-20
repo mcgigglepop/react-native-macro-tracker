@@ -242,6 +242,7 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
 
     try {
       setSaving(true);
+      console.log('Creating food record with date:', selectedDate);
       const success = await ApiService.createFoodRecord({
         name: foodName.trim(),
         calories: calculatedCalories,
