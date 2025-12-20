@@ -80,6 +80,7 @@ export class ApiService {
     carbs: number;
     fat: number;
     quantity?: string;
+    date?: string;
   }): Promise<boolean> {
     try {
       console.log('Creating food record:', foodRecord);

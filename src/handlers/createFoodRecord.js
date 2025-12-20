@@ -60,7 +60,7 @@ export const handler = async (event) => {
     }
 
     // Validate required fields
-    const { name, calories, protein, carbs, fat, quantity } = body;
+    const { name, calories, protein, carbs, fat, quantity, date } = body;
     if (!name || protein === undefined || carbs === undefined || fat === undefined) {
       return {
         statusCode: 400,
@@ -110,16 +110,56 @@ export const handler = async (event) => {
       ? Number(calories)
       : (Number(protein) * 4) + (Number(carbs) * 4) + (Number(fat) * 9);
 
-    // Get current date in YYYY-MM-DD format
+    // Get date from request body or use current date
+    let recordDate;
+    if (date) {
+      // Validate date format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return {
+          statusCode: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({
+            error: "Bad Request",
+            message: "Date must be in YYYY-MM-DD format",
+          }),
+        };
+      }
+      
+      // Validate that the date is not in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const recordDateObj = new Date(date + 'T00:00:00');
+      if (recordDateObj > today) {
+        return {
+          statusCode: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({
+            error: "Bad Request",
+            message: "Cannot create food records for future dates",
+          }),
+        };
+      }
+      
+      recordDate = date;
+    } else {
+      // Default to current date
+      recordDate = new Date().toISOString().split("T")[0];
+    }
+    
     const now = new Date();
-    const date = now.toISOString().split("T")[0]; // YYYY-MM-DD
     const timestamp = now.getTime();
     
     // Generate unique record ID
     const recordId = crypto.randomUUID();
     
     // Build sort key: date#timestamp#recordId
-    const dateTimestamp = `${date}#${timestamp}#${recordId}`;
+    const dateTimestamp = `${recordDate}#${timestamp}#${recordId}`;
 
     // Create food record item
     const foodRecord = {
@@ -138,7 +178,7 @@ export const handler = async (event) => {
       at: "food_record_prepared",
       requestId,
       userId,
-      date,
+      date: recordDate,
       dateTimestamp,
       foodRecord,
     }));

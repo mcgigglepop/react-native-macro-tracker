@@ -31,6 +31,13 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+  
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+
   // Calculate totals from food records
   const dailyCalories = foodRecords.reduce((sum, record) => sum + (record.calories || 0), 0);
   const macros = {
@@ -39,23 +46,25 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
     fat: foodRecords.reduce((sum, record) => sum + (record.fats || 0), 0),
   };
 
-  // Fetch food records on mount and when screen comes into focus
+  // Fetch food records when selectedDate changes and when screen comes into focus
   useEffect(() => {
-    fetchFoodRecords();
-    
+    fetchFoodRecords(selectedDate);
+  }, [selectedDate]);
+
+  useEffect(() => {
     // Set up focus listener to refresh data when screen is focused
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchFoodRecords();
+      fetchFoodRecords(selectedDate);
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, selectedDate]);
 
-  const fetchFoodRecords = async () => {
+  const fetchFoodRecords = async (date?: string) => {
     try {
       setLoading(true);
       setError(null);
-      const records = await ApiService.getFoodRecords();
+      const records = await ApiService.getFoodRecords(date || selectedDate);
       if (records !== null) {
         setFoodRecords(records);
       } else {
@@ -67,6 +76,59 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Navigate to previous day
+  const goToPreviousDay = () => {
+    const date = new Date(selectedDate);
+    date.setDate(date.getDate() - 1);
+    setSelectedDate(date.toISOString().split('T')[0]);
+  };
+
+  // Navigate to next day
+  const goToNextDay = () => {
+    const date = new Date(selectedDate);
+    date.setDate(date.getDate() + 1);
+    const newDate = date.toISOString().split('T')[0];
+    const today = getTodayDate();
+    
+    // Don't allow navigation to future dates
+    if (newDate <= today) {
+      setSelectedDate(newDate);
+    }
+  };
+
+  // Format date for display (e.g., "Monday, January 15, 2024")
+  const formatDisplayDate = (dateString: string) => {
+    const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+    const today = new Date(getTodayDate() + 'T00:00:00');
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    
+    if (date.toISOString().split('T')[0] === today.toISOString().split('T')[0]) {
+      return 'Today, ' + date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } else if (date.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
+      return 'Yesterday, ' + date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } else {
+      return date.toLocaleDateString('en-US', options);
+    }
+  };
+
+  const canGoToNextDay = () => {
+    const date = new Date(selectedDate);
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().split('T')[0] <= getTodayDate();
+  };
+
+  const isFutureDate = () => {
+    return selectedDate > getTodayDate();
   };
 
   const handleOpenModal = () => {
@@ -106,7 +168,7 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
               const success = await ApiService.deleteFoodRecord(recordId);
               if (success) {
                 // Refresh food records
-                await fetchFoodRecords();
+                await fetchFoodRecords(selectedDate);
                 Alert.alert('Success', 'Food record deleted successfully');
               }
             } catch (err: any) {
@@ -166,12 +228,13 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
         protein: proteinNum,
         carbs: carbsNum,
         fat: fatNum,
+        date: selectedDate, // Pass the selected date
       });
 
       if (success) {
         handleCloseModal();
         // Refresh food records
-        await fetchFoodRecords();
+        await fetchFoodRecords(selectedDate);
         Alert.alert('Success', 'Food record saved successfully');
       } else {
         Alert.alert('Error', 'Failed to save food record. Please try again.');
@@ -194,6 +257,24 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
         <Text style={styles.title}>Food Journal</Text>
         <View style={styles.headerSpacer} />
+      </View>
+
+      {/* Date Selector */}
+      <View style={styles.dateSelector}>
+        <TouchableOpacity 
+          style={styles.dateArrow}
+          onPress={goToPreviousDay}
+        >
+          <Text style={styles.dateArrowText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.dateText}>{formatDisplayDate(selectedDate)}</Text>
+        <TouchableOpacity 
+          style={[styles.dateArrow, !canGoToNextDay() && styles.dateArrowDisabled]}
+          onPress={goToNextDay}
+          disabled={!canGoToNextDay()}
+        >
+          <Text style={[styles.dateArrowText, !canGoToNextDay() && styles.dateArrowTextDisabled]}>→</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Fixed Daily Calories Card */}
@@ -224,15 +305,20 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
 
       {/* Fixed Add Food Button */}
       <TouchableOpacity 
-        style={styles.addFoodButton}
+        style={[styles.addFoodButton, isFutureDate() && styles.addFoodButtonDisabled]}
         onPress={handleOpenModal}
+        disabled={isFutureDate()}
       >
-        <Text style={styles.addFoodButtonText}>+ Log Food</Text>
+        <Text style={[styles.addFoodButtonText, isFutureDate() && styles.addFoodButtonTextDisabled]}>
+          + Log Food
+        </Text>
       </TouchableOpacity>
 
       {/* Fixed Section Title */}
       <View style={styles.fixedSectionTitle}>
-        <Text style={styles.sectionTitle}>Foods Logged Today</Text>
+        <Text style={styles.sectionTitle}>
+          {selectedDate === getTodayDate() ? 'Foods Logged Today' : `Foods Logged on ${formatDisplayDate(selectedDate)}`}
+        </Text>
       </View>
 
       {/* Scrollable Foods List */}
@@ -248,14 +334,22 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
         ) : error ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={fetchFoodRecords}>
+            <TouchableOpacity style={styles.retryButton} onPress={() => fetchFoodRecords(selectedDate)}>
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
         ) : foodRecords.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No food records for today</Text>
-            <Text style={styles.emptySubtext}>Tap "+ Log Food" to add your first entry</Text>
+            <Text style={styles.emptyText}>
+              {selectedDate === getTodayDate() 
+                ? 'No food records for today' 
+                : `No food records for ${formatDisplayDate(selectedDate)}`}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {isFutureDate() 
+                ? 'Cannot add food records for future dates' 
+                : 'Tap "+ Log Food" to add your first entry'}
+            </Text>
           </View>
         ) : (
           foodRecords.map((food, index) => (
@@ -417,6 +511,40 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 60,
   },
+  dateSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  dateArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateArrowDisabled: {
+    opacity: 0.3,
+  },
+  dateArrowText: {
+    fontSize: 24,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  dateArrowTextDisabled: {
+    color: '#999',
+  },
+  dateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 16,
+  },
   caloriesCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -509,6 +637,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  addFoodButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
+  },
+  addFoodButtonTextDisabled: {
+    color: '#999',
   },
   fixedSectionTitle: {
     paddingHorizontal: 20,
