@@ -19,6 +19,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
   const [foodRecords, setFoodRecords] = useState<FoodRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sevenDayAverage, setSevenDayAverage] = useState<number | null>(null);
+  const [centeredWeekAverage, setCenteredWeekAverage] = useState<number | null>(null);
+  const [centeredWeekDaysRemaining, setCenteredWeekDaysRemaining] = useState<number>(0);
+  const [loadingAverages, setLoadingAverages] = useState(false);
   
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -38,7 +42,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
   // Fetch food records when selectedDate changes and when screen comes into focus
   useEffect(() => {
     fetchFoodRecords(selectedDate);
+    fetchAverages();
   }, [selectedDate]);
+
+  // Fetch averages when component mounts or screen is focused
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchAverages();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     // Set up focus listener to refresh data when screen is focused
@@ -82,6 +96,60 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
       setError('Failed to load food records');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAverages = async () => {
+    try {
+      setLoadingAverages(true);
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      // Calculate 7-day rolling average (last 7 days including today)
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // 6 days ago + today = 7 days
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+      // Calculate centered 7-day period (3 days before, today, 3 days after)
+      // Since we can't see future, we'll use: 3 days before, today, and show what's remaining
+      const threeDaysAgo = new Date(today);
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
+
+      // Fetch 7-day rolling data
+      const sevenDayData = await ApiService.getFoodRecordsRange(sevenDaysAgoStr, todayStr);
+      
+      // Fetch centered week data (last 3 days + today)
+      const centeredWeekData = await ApiService.getFoodRecordsRange(threeDaysAgoStr, todayStr);
+
+      if (sevenDayData) {
+        // Calculate 7-day rolling average
+        const days = Object.keys(sevenDayData).sort();
+        const totalCalories = days.reduce((sum, date) => sum + (sevenDayData[date]?.calories || 0), 0);
+        const average = days.length > 0 ? totalCalories / days.length : 0;
+        setSevenDayAverage(average);
+      }
+
+      if (centeredWeekData) {
+        // Calculate centered week average (so far)
+        const days = Object.keys(centeredWeekData).sort();
+        const totalCalories = days.reduce((sum, date) => sum + (centeredWeekData[date]?.calories || 0), 0);
+        const daysSoFar = days.length;
+        const average = daysSoFar > 0 ? totalCalories / daysSoFar : 0;
+        setCenteredWeekAverage(average);
+        setCenteredWeekDaysRemaining(7 - daysSoFar); // Remaining days in the 7-day period
+      }
+    } catch (err: any) {
+      console.error('Error fetching averages:', err);
+      // If it's a 403 error, the endpoint might not be deployed yet - set averages to null
+      if (err?.message?.includes('403')) {
+        console.log('Averages endpoint not available (likely not deployed yet)');
+        setSevenDayAverage(null);
+        setCenteredWeekAverage(null);
+      }
+      // Don't set error state - averages are secondary data
+    } finally {
+      setLoadingAverages(false);
     }
   };
 
@@ -263,6 +331,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
               <Text style={styles.caloriesLabel}>Daily Calories Consumed</Text>
               <Text style={styles.caloriesValue}>{dailyCalories}</Text>
               <Text style={styles.caloriesUnit}>kcal</Text>
+              
+              {/* Calorie Averages Subtext */}
+              <View style={styles.averagesSubtextContainer}>
+                <Text style={styles.averagesSubtext}>
+                  7-Day Avg: {loadingAverages ? '...' : sevenDayAverage !== null ? Math.round(sevenDayAverage) : 'N/A'} kcal/day
+                </Text>
+                <Text style={styles.averagesSubtext}>
+                  Week Avg: {loadingAverages ? '...' : centeredWeekAverage !== null ? Math.round(centeredWeekAverage) : 'N/A'} kcal/day
+                  {centeredWeekDaysRemaining > 0 && ` (${centeredWeekDaysRemaining} day${centeredWeekDaysRemaining !== 1 ? 's' : ''} remaining)`}
+                </Text>
+              </View>
             </View>
 
             {/* Log Food Button */}
@@ -357,6 +436,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 16,
   },
+  averagesSection: {
+    marginBottom: 20,
+  },
+  averagesCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  averageItem: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  averageLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  averageValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 4,
+  },
+  averageUnit: {
+    fontSize: 14,
+    color: '#999',
+  },
+  averageSubtext: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  averageDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 12,
+  },
   caloriesCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -386,6 +512,20 @@ const styles = StyleSheet.create({
   caloriesUnit: {
     fontSize: 14,
     color: '#999',
+    marginBottom: 12,
+  },
+  averagesSubtextContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    width: '100%',
+  },
+  averagesSubtext: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginVertical: 2,
   },
   macrosCard: {
     backgroundColor: '#fff',

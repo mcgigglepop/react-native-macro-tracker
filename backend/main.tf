@@ -128,6 +128,32 @@ locals {
       })
       timeout = 10
     }
+    get-food-records-range = {
+      zip         = "${path.module}/../dist/zips/getFoodRecordsRange.zip"
+      description = "API Gateway Lambda function for getting food records for a date range"
+      env         = { 
+        FOOD_RECORDS_TABLE = module.dynamodb.table_names["food-records"]
+      }
+      iam_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "dynamodb:Query"
+            ]
+            Resource = [
+              "arn:aws:logs:*:*:*",
+              module.dynamodb.table_arns["food-records"]
+            ]
+          }
+        ]
+      })
+      timeout = 15
+    }
   }
 }
 
@@ -206,11 +232,13 @@ module "api-gw" {
     "get-food-records"   = module.lambda["get-food-records"].invoke_arn
     "delete-food-record" = module.lambda["delete-food-record"].invoke_arn
     "get-user-info"      = module.lambda["get-user-info"].invoke_arn
+    "get-food-records-range" = module.lambda["get-food-records-range"].invoke_arn
   }
   lambda_function_names = {
     "create-food-record" = module.lambda["create-food-record"].function_name
     "get-food-records"   = module.lambda["get-food-records"].function_name
     "delete-food-record" = module.lambda["delete-food-record"].function_name
     "get-user-info"      = module.lambda["get-user-info"].function_name
+    "get-food-records-range" = module.lambda["get-food-records-range"].function_name
   }
 }

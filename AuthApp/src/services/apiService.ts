@@ -6,6 +6,7 @@ const API_CONFIG = {
   endpoints: {
     foodRecords: '/food-records',
     userInfo: '/user-info',
+    foodRecordsRange: '/food-records/range',
   }
 };
 
@@ -289,6 +290,55 @@ export class ApiService {
       return null;
     } catch (error) {
       console.error('Error fetching user information:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get food records for a date range
+   * @param startDate Start date in YYYY-MM-DD format
+   * @param endDate End date in YYYY-MM-DD format
+   * @returns Object with daily totals keyed by date
+   */
+  static async getFoodRecordsRange(startDate: string, endDate: string): Promise<Record<string, { calories: number; protein: number; carbs: number; fat: number; recordCount: number }> | null> {
+    try {
+      console.log('Fetching food records range from API:', startDate, 'to', endDate);
+      const token = await this.getSessionToken();
+      
+      if (!token) {
+        console.error('No valid session token available');
+        throw new Error('No valid session token');
+      }
+
+      const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.foodRecordsRange}?startDate=${startDate}&endDate=${endDate}`;
+      console.log('Making GET request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Get food records range response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Get food records range error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Get food records range response:', data);
+      
+      if (data.data) {
+        return data.data;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching food records range:', error);
       throw error;
     }
   }

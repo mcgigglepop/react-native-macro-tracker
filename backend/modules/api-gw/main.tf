@@ -29,25 +29,31 @@ resource "aws_api_gateway_deployment" "this" {
     aws_api_gateway_method.food_records_options,
     aws_api_gateway_method.user_info_get,
     aws_api_gateway_method.user_info_options,
+    aws_api_gateway_method.food_records_range_get,
+    aws_api_gateway_method.food_records_range_options,
     aws_api_gateway_integration.food_records_post,
     aws_api_gateway_integration.food_records_get,
     aws_api_gateway_integration.food_records_delete,
     aws_api_gateway_integration.food_records_options,
     aws_api_gateway_integration.user_info_get,
     aws_api_gateway_integration.user_info_options,
+    aws_api_gateway_integration.food_records_range_get,
+    aws_api_gateway_integration.food_records_range_options,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.this.id
 
   triggers = {
     redeployment = sha1(jsonencode({
-      authorizer              = aws_api_gateway_authorizer.this.id,
-      food_records_post       = aws_api_gateway_method.food_records_post.id,
-      food_records_get        = aws_api_gateway_method.food_records_get.id,
-      food_records_delete     = aws_api_gateway_method.food_records_delete.id,
-      food_records_options    = aws_api_gateway_method.food_records_options.id,
-      user_info_get           = aws_api_gateway_method.user_info_get.id,
-      user_info_options       = aws_api_gateway_method.user_info_options.id,
+      authorizer                  = aws_api_gateway_authorizer.this.id,
+      food_records_post           = aws_api_gateway_method.food_records_post.id,
+      food_records_get            = aws_api_gateway_method.food_records_get.id,
+      food_records_delete         = aws_api_gateway_method.food_records_delete.id,
+      food_records_options        = aws_api_gateway_method.food_records_options.id,
+      food_records_range_get      = aws_api_gateway_method.food_records_range_get.id,
+      food_records_range_options  = aws_api_gateway_method.food_records_range_options.id,
+      user_info_get               = aws_api_gateway_method.user_info_get.id,
+      user_info_options           = aws_api_gateway_method.user_info_options.id,
     }))
   }
 
@@ -303,6 +309,85 @@ resource "aws_lambda_permission" "user_info_get" {
   function_name = var.lambda_function_names["get-user-info"]
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+# Resource for /food-records/range
+resource "aws_api_gateway_resource" "food_records_range" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.food_records.id
+  path_part   = "range"
+}
+
+# GET method for getting food records in a date range
+resource "aws_api_gateway_method" "food_records_range_get" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.food_records_range.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.this.id
+}
+
+resource "aws_api_gateway_integration" "food_records_range_get" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records_range.id
+  http_method = aws_api_gateway_method.food_records_range_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["get-food-records-range"]
+}
+
+resource "aws_lambda_permission" "food_records_range_get" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get-food-records-range"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+# OPTIONS method for CORS preflight
+resource "aws_api_gateway_method" "food_records_range_options" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.food_records_range.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "food_records_range_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records_range.id
+  http_method = aws_api_gateway_method.food_records_range_options.http_method
+
+  type = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "food_records_range_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records_range.id
+  http_method = aws_api_gateway_method.food_records_range_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "food_records_range_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records_range.id
+  http_method = aws_api_gateway_method.food_records_range_options.http_method
+  status_code = aws_api_gateway_method_response.food_records_range_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
 }
 
 # OPTIONS method for CORS preflight
