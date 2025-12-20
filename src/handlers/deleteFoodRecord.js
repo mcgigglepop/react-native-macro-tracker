@@ -43,7 +43,8 @@ export const handler = async (event) => {
     }
 
     // Get record ID from path parameters
-    const recordId = event.pathParameters?.recordId;
+    // API Gateway automatically URL-decodes path parameters
+    let recordId = event.pathParameters?.recordId;
     if (!recordId) {
       return {
         statusCode: 400,
@@ -58,11 +59,27 @@ export const handler = async (event) => {
       };
     }
 
+    // Decode the recordId in case it was encoded
+    try {
+      recordId = decodeURIComponent(recordId);
+    } catch (e) {
+      // If decoding fails, use the original value
+      console.log(JSON.stringify({
+        at: "recordId_decode_failed",
+        requestId,
+        recordId,
+        error: e.message,
+      }));
+    }
+
     console.log(JSON.stringify({
       at: "delete_request_received",
       requestId,
       userId,
       recordId,
+      recordIdType: typeof recordId,
+      recordIdLength: recordId?.length,
+      pathParameters: event.pathParameters,
     }));
 
     // First, verify the record exists and belongs to the user

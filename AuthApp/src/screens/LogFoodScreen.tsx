@@ -83,6 +83,42 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
     setFat('');
   };
 
+  const handleDeleteFood = async (recordId: string, foodName: string) => {
+    if (!recordId) {
+      Alert.alert('Error', 'Unable to delete: Record ID is missing');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Food Record',
+      `Are you sure you want to delete "${foodName}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('Attempting to delete record with ID:', recordId);
+              const success = await ApiService.deleteFoodRecord(recordId);
+              if (success) {
+                // Refresh food records
+                await fetchFoodRecords();
+                Alert.alert('Success', 'Food record deleted successfully');
+              }
+            } catch (err: any) {
+              console.error('Error deleting food record:', err);
+              Alert.alert('Error', err?.message || 'Failed to delete food record');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSaveFood = async () => {
     // Validate input
     if (!foodName.trim()) {
@@ -226,6 +262,14 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
             <View key={`${food.date}-${food.name}-${index}`} style={styles.foodItem}>
               <View style={styles.foodHeader}>
                 <Text style={styles.foodName}>{food.name}</Text>
+                {food.date_timestamp && (
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteFood(food.date_timestamp!, food.name)}
+                  >
+                    <Text style={styles.deleteButtonText}>×</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <View style={styles.foodMacros}>
                 <View style={styles.foodMacroItem}>
@@ -507,6 +551,21 @@ const styles = StyleSheet.create({
   foodQuantity: {
     fontSize: 14,
     color: '#666',
+  },
+  deleteButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#dc3545',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    lineHeight: 20,
   },
   foodMacros: {
     flexDirection: 'row',

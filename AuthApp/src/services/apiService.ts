@@ -15,6 +15,7 @@ export interface FoodRecord {
   protein: number;
   carbs: number;
   fats: number;
+  date_timestamp?: string; // Sort key for deletion
 }
 
 export class ApiService {
@@ -167,7 +168,8 @@ export class ApiService {
           calories: record.calories || 0,
           protein: record.protein || 0,
           carbs: record.carbs || 0,
-          fats: record.fat || 0
+          fats: record.fat || 0,
+          date_timestamp: record.date_timestamp || '' // Include full sort key for deletion
         }));
       }
       
@@ -175,6 +177,70 @@ export class ApiService {
     } catch (error) {
       console.error('Error fetching food records:', error);
       return null;
+    }
+  }
+
+  /**
+   * Delete a food record by record ID
+   * @param recordId The date_timestamp (sort key) of the record to delete
+   */
+  static async deleteFoodRecord(recordId: string): Promise<boolean> {
+    try {
+      console.log('Deleting food record:', recordId);
+      const token = await this.getSessionToken();
+      
+      if (!token) {
+        console.error('No valid session token available');
+        throw new Error('No valid session token');
+      }
+
+      // URL encode the recordId since it may contain special characters
+      const encodedRecordId = encodeURIComponent(recordId);
+      const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.foodRecords}/${encodedRecordId}`;
+      console.log('Making DELETE request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Delete food record response status:', response.status);
+      
+      if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          console.error('Delete food record error response:', errorText);
+        } catch (e) {
+          console.error('Error reading error response:', e);
+        }
+        
+        if (response.status === 404) {
+          throw new Error('Food record not found');
+        } else if (response.status === 403) {
+          throw new Error('You do not have permission to delete this record');
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}${errorText ? `, message: ${errorText}` : ''}`);
+        }
+      }
+
+      let data;
+      try {
+        const responseText = await response.text();
+        if (responseText) {
+          data = JSON.parse(responseText);
+          console.log('Delete food record response:', data);
+        }
+      } catch (e) {
+        console.log('No response body or invalid JSON, assuming success');
+      }
+      return true;
+    } catch (error) {
+      console.error('Error deleting food record:', error);
+      throw error;
     }
   }
 }
