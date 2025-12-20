@@ -31,6 +31,8 @@ resource "aws_api_gateway_deployment" "this" {
     aws_api_gateway_method.user_info_options,
     aws_api_gateway_method.food_records_range_get,
     aws_api_gateway_method.food_records_range_options,
+    aws_api_gateway_method.verify_purchase_post,
+    aws_api_gateway_method.verify_purchase_options,
     aws_api_gateway_integration.food_records_post,
     aws_api_gateway_integration.food_records_get,
     aws_api_gateway_integration.food_records_delete,
@@ -39,6 +41,8 @@ resource "aws_api_gateway_deployment" "this" {
     aws_api_gateway_integration.user_info_options,
     aws_api_gateway_integration.food_records_range_get,
     aws_api_gateway_integration.food_records_range_options,
+    aws_api_gateway_integration.verify_purchase_post,
+    aws_api_gateway_integration.verify_purchase_options,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -54,6 +58,8 @@ resource "aws_api_gateway_deployment" "this" {
       food_records_range_options  = aws_api_gateway_method.food_records_range_options.id,
       user_info_get               = aws_api_gateway_method.user_info_get.id,
       user_info_options           = aws_api_gateway_method.user_info_options.id,
+      verify_purchase_post        = aws_api_gateway_method.verify_purchase_post.id,
+      verify_purchase_options     = aws_api_gateway_method.verify_purchase_options.id,
     }))
   }
 
@@ -386,6 +392,89 @@ resource "aws_api_gateway_integration_response" "food_records_range_options" {
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
     "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+##################################
+# VERIFY PURCHASE ENDPOINT
+##################################
+
+# Resource for /verify-purchase
+resource "aws_api_gateway_resource" "verify_purchase" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "verify-purchase"
+}
+
+# POST method for verifying purchase
+resource "aws_api_gateway_method" "verify_purchase_post" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.verify_purchase.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.this.id
+}
+
+resource "aws_api_gateway_integration" "verify_purchase_post" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.verify_purchase.id
+  http_method = aws_api_gateway_method.verify_purchase_post.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["verify-purchase"]
+}
+
+resource "aws_lambda_permission" "verify_purchase_post" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["verify-purchase"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+# OPTIONS method for CORS preflight
+resource "aws_api_gateway_method" "verify_purchase_options" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.verify_purchase.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "verify_purchase_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.verify_purchase.id
+  http_method = aws_api_gateway_method.verify_purchase_options.http_method
+
+  type = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "verify_purchase_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.verify_purchase.id
+  http_method = aws_api_gateway_method.verify_purchase_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "verify_purchase_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.verify_purchase.id
+  http_method = aws_api_gateway_method.verify_purchase_options.http_method
+  status_code = aws_api_gateway_method_response.verify_purchase_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 }

@@ -7,6 +7,7 @@ const API_CONFIG = {
     foodRecords: '/food-records',
     userInfo: '/user-info',
     foodRecordsRange: '/food-records/range',
+    verifyPurchase: '/verify-purchase',
   }
 };
 
@@ -339,6 +340,57 @@ export class ApiService {
       return null;
     } catch (error) {
       console.error('Error fetching food records range:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify purchase receipt and update subscription status
+   * @param receipt Base64 encoded receipt data
+   * @param productId Product ID that was purchased
+   * @param transactionId Transaction ID
+   * @returns Promise<boolean> - true if successful
+   */
+  static async verifyPurchase(receipt: string, productId: string, transactionId: string): Promise<boolean> {
+    try {
+      console.log('Verifying purchase with backend...');
+      const token = await this.getSessionToken();
+      
+      if (!token) {
+        console.error('No valid session token available');
+        throw new Error('No valid session token');
+      }
+
+      const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.verifyPurchase}`;
+      console.log('Making POST request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          receipt,
+          productId,
+          transactionId,
+        })
+      });
+
+      console.log('Verify purchase response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Verify purchase error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Verify purchase response:', data);
+      
+      return true;
+    } catch (error) {
+      console.error('Error verifying purchase:', error);
       throw error;
     }
   }

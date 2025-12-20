@@ -149,3 +149,10 @@ variable "domain_name" {
   type        = string
   default     = null
 }
+
+variable "apple_shared_secret" {
+  description = "Apple App Store shared secret for receipt verification (optional, for auto-renewable subscriptions)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

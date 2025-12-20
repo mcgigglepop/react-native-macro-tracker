@@ -154,6 +154,34 @@ locals {
       })
       timeout = 15
     }
+    verify-purchase = {
+      zip         = "${path.module}/../dist/zips/verifyPurchase.zip"
+      description = "API Gateway Lambda function for verifying Apple purchase receipts and updating subscription status"
+      env         = { 
+        USERS_TABLE = module.dynamodb.table_names["users"]
+        APPLE_SHARED_SECRET = var.apple_shared_secret # Optional: set via terraform variable
+      }
+      iam_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "dynamodb:GetItem",
+              "dynamodb:UpdateItem"
+            ]
+            Resource = [
+              "arn:aws:logs:*:*:*",
+              module.dynamodb.table_arns["users"]
+            ]
+          }
+        ]
+      })
+      timeout = 30 # Longer timeout for Apple API calls
+    }
   }
 }
 
@@ -233,6 +261,7 @@ module "api-gw" {
     "delete-food-record" = module.lambda["delete-food-record"].invoke_arn
     "get-user-info"      = module.lambda["get-user-info"].invoke_arn
     "get-food-records-range" = module.lambda["get-food-records-range"].invoke_arn
+    "verify-purchase"    = module.lambda["verify-purchase"].invoke_arn
   }
   lambda_function_names = {
     "create-food-record" = module.lambda["create-food-record"].function_name
@@ -240,5 +269,6 @@ module "api-gw" {
     "delete-food-record" = module.lambda["delete-food-record"].function_name
     "get-user-info"      = module.lambda["get-user-info"].function_name
     "get-food-records-range" = module.lambda["get-food-records-range"].function_name
+    "verify-purchase"    = module.lambda["verify-purchase"].function_name
   }
 }

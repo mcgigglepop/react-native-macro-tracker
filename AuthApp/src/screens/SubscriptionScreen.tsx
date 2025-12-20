@@ -42,6 +42,7 @@ import {
 } from 'react-native';
 import * as InAppPurchases from 'expo-in-app-purchases';
 import { useSubscription } from '../context/SubscriptionContext';
+import ApiService from '../services/apiService';
 
 interface SubscriptionScreenProps {
   navigation: any;
@@ -204,44 +205,54 @@ const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigation }) =
     try {
       console.log('Purchase successful:', purchase);
       
-      // TODO: IMPORTANT - Validate purchase receipt on your backend
-      // SECURITY: Never trust client-side purchase data alone!
-      // You should:
-      // 1. Send the receipt (purchase.receipt) to your backend API
-      // 2. Backend verifies receipt with Apple's servers
-      // 3. Backend updates user's accountType in DynamoDB to 'premium'
-      // 4. Backend optionally updates Cognito user attribute 'custom:account_type'
-      // 5. Then refresh subscription status from your backend
-      
-      // Example backend call (implement this):
-      // const response = await ApiService.verifyPurchase({
-      //   receipt: purchase.receipt,
-      //   productId: purchase.productId,
-      //   transactionId: purchase.orderId,
-      // });
-      
-      // For now, we'll finish the transaction and refresh
-      // NOTE: In production, only finish transaction AFTER backend verification succeeds
-      await InAppPurchases.finishTransactionAsync(purchase, false);
-      
-      // Refresh subscription status (this will fetch from your backend)
-      await refreshSubscription();
-      
-      setProcessing(false);
-      
-      Alert.alert(
-        'Purchase Successful!',
-        'Your subscription has been activated. Thank you for upgrading to Premium!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate back to previous screen
-              navigation.goBack();
+      // Verify purchase receipt on backend
+      // This is CRITICAL for security - never trust client-side purchase data alone!
+      try {
+        await ApiService.verifyPurchase(
+          purchase.receipt, // Base64 encoded receipt
+          purchase.productId, // Product ID that was purchased
+          purchase.orderId || purchase.transactionId || '', // Transaction ID
+        );
+        
+        // Only finish transaction after successful backend verification
+        await InAppPurchases.finishTransactionAsync(purchase, false);
+        
+        // Refresh subscription status to reflect the upgrade
+        await refreshSubscription();
+        
+        setProcessing(false);
+        
+        Alert.alert(
+          'Purchase Successful!',
+          'Your subscription has been activated. Thank you for upgrading to Premium!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate back to previous screen
+                navigation.goBack();
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      } catch (backendError: any) {
+        console.error('Backend verification error:', backendError);
+        setProcessing(false);
+        
+        // Don't finish transaction if backend verification fails
+        // The transaction will remain pending and can be retried
+        
+        Alert.alert(
+          'Verification Failed',
+          backendError?.message || 'Failed to verify purchase with server. Please contact support if this issue persists.',
+          [
+            {
+              text: 'OK',
+              // Transaction remains pending, user can retry later
+            }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error processing purchase:', error);
       setProcessing(false);
