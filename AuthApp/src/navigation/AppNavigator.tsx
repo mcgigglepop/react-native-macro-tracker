@@ -7,6 +7,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import LogFoodScreen from '../screens/LogFoodScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 const Stack = createStackNavigator();
@@ -72,6 +73,13 @@ const AppNavigator: React.FC = () => {
             <Stack.Screen 
               name="LogFood" 
               component={LogFoodScreen}
+              options={{
+                animationEnabled: false,
+              }}
+            />
+            <Stack.Screen 
+              name="Profile" 
+              component={ProfileScreen}
               options={{
                 animationEnabled: false,
               }}

@@ -27,10 +27,14 @@ resource "aws_api_gateway_deployment" "this" {
     aws_api_gateway_method.food_records_get,
     aws_api_gateway_method.food_records_delete,
     aws_api_gateway_method.food_records_options,
+    aws_api_gateway_method.user_info_get,
+    aws_api_gateway_method.user_info_options,
     aws_api_gateway_integration.food_records_post,
     aws_api_gateway_integration.food_records_get,
     aws_api_gateway_integration.food_records_delete,
     aws_api_gateway_integration.food_records_options,
+    aws_api_gateway_integration.user_info_get,
+    aws_api_gateway_integration.user_info_options,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -42,6 +46,8 @@ resource "aws_api_gateway_deployment" "this" {
       food_records_get        = aws_api_gateway_method.food_records_get.id,
       food_records_delete     = aws_api_gateway_method.food_records_delete.id,
       food_records_options    = aws_api_gateway_method.food_records_options.id,
+      user_info_get           = aws_api_gateway_method.user_info_get.id,
+      user_info_options       = aws_api_gateway_method.user_info_options.id,
     }))
   }
 
@@ -263,4 +269,83 @@ resource "aws_lambda_permission" "food_records_delete" {
   function_name = var.lambda_function_names["delete-food-record"]
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+# Resource for /user-info
+resource "aws_api_gateway_resource" "user_info" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = "user-info"
+}
+
+# GET method for getting user information
+resource "aws_api_gateway_method" "user_info_get" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.user_info.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.this.id
+}
+
+resource "aws_api_gateway_integration" "user_info_get" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.user_info.id
+  http_method = aws_api_gateway_method.user_info_get.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["get-user-info"]
+}
+
+resource "aws_lambda_permission" "user_info_get" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["get-user-info"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+# OPTIONS method for CORS preflight
+resource "aws_api_gateway_method" "user_info_options" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.user_info.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "user_info_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.user_info.id
+  http_method = aws_api_gateway_method.user_info_options.http_method
+
+  type = "MOCK"
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "user_info_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.user_info.id
+  http_method = aws_api_gateway_method.user_info_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "user_info_options" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.user_info.id
+  http_method = aws_api_gateway_method.user_info_options.http_method
+  status_code = aws_api_gateway_method_response.user_info_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
 }

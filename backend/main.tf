@@ -102,6 +102,32 @@ locals {
       })
       timeout = 10
     }
+    get-user-info = {
+      zip         = "${path.module}/../dist/zips/getUserInfo.zip"
+      description = "API Gateway Lambda function for getting user information"
+      env         = { 
+        USERS_TABLE = module.dynamodb.table_names["users"]
+      }
+      iam_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "dynamodb:GetItem"
+            ]
+            Resource = [
+              "arn:aws:logs:*:*:*",
+              module.dynamodb.table_arns["users"]
+            ]
+          }
+        ]
+      })
+      timeout = 10
+    }
   }
 }
 
@@ -179,10 +205,12 @@ module "api-gw" {
     "create-food-record" = module.lambda["create-food-record"].invoke_arn
     "get-food-records"   = module.lambda["get-food-records"].invoke_arn
     "delete-food-record" = module.lambda["delete-food-record"].invoke_arn
+    "get-user-info"      = module.lambda["get-user-info"].invoke_arn
   }
   lambda_function_names = {
     "create-food-record" = module.lambda["create-food-record"].function_name
     "get-food-records"   = module.lambda["get-food-records"].function_name
     "delete-food-record" = module.lambda["delete-food-record"].function_name
+    "get-user-info"      = module.lambda["get-user-info"].function_name
   }
 }

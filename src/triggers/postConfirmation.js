@@ -12,7 +12,7 @@ import crypto from "node:crypto";
  * - event.request.userAttributes.email: User email
  * - event.request.userAttributes.given_name: First name (optional)
  * - event.request.userAttributes.family_name: Last name (optional)
- * - event.request.userAttributes['custom:account_type']: Account type (optional) - 'individual' or 'dealer'
+ * - event.request.userAttributes['custom:account_type']: Account type (optional) - 'basic' or 'premium'
  */
 
 /**
@@ -125,7 +125,7 @@ export const handler = async (event) => {
     const email = userAttributes.email?.toLowerCase() || "";
     const givenName = userAttributes.given_name || "";
     const familyName = userAttributes.family_name || "";
-    const accountType = userAttributes["custom:account_type"] || "individual"; // Default to 'individual' if not provided
+    const accountType = userAttributes["custom:account_type"] || "basic"; // Default to 'basic' if not provided
 
     console.log(JSON.stringify({
       at: "user_attributes_extracted",
@@ -198,7 +198,7 @@ export const handler = async (event) => {
       gImgHash: gImgHash, // MD5 hash for Gravatar (lowercase hex)
       username: username,
       displayName: displayName,
-      accountType: accountType, // 'individual' or 'dealer' from Cognito custom attribute
+      accountType: accountType, // 'basic' or 'premium' from Cognito custom attribute
       roles: ["user"], // Default role - user only
       createdAt: now,
       updatedAt: now,

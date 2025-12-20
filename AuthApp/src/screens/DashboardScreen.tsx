@@ -6,10 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  Alert,
   ActivityIndicator
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
 import ApiService, { FoodRecord } from '../services/apiService';
 
 interface DashboardScreenProps {
@@ -18,7 +16,6 @@ interface DashboardScreenProps {
 }
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) => {
-  const { logout } = useAuth();
   const [foodRecords, setFoodRecords] = useState<FoodRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,22 +134,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
     return date.toISOString().split('T')[0] <= getTodayDate();
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: logout,
-        },
-      ]
-    );
+  const handleProfilePress = () => {
+    navigation.navigate('Profile');
   };
 
   // Calculate percentages for pie chart
@@ -238,8 +221,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>Dashboard</Text>
-          <TouchableOpacity style={styles.logoutButtonMinimal} onPress={handleLogout}>
-            <Text style={styles.logoutButtonTextMinimal}>Logout</Text>
+          <TouchableOpacity style={styles.profileButtonMinimal} onPress={handleProfilePress}>
+            <Text style={styles.profileButtonTextMinimal}>Profile</Text>
           </TouchableOpacity>
         </View>
           
@@ -555,14 +538,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-  logoutButtonMinimal: {
+  profileButtonMinimal: {
     backgroundColor: '#007AFF',
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 20,
     alignItems: 'center',
   },
-  logoutButtonTextMinimal: {
+  profileButtonTextMinimal: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

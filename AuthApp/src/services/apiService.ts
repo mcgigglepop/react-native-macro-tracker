@@ -5,6 +5,7 @@ const API_CONFIG = {
   baseUrl: 'https://nvqbytljw7.execute-api.us-west-2.amazonaws.com/dev',
   endpoints: {
     foodRecords: '/food-records',
+    userInfo: '/user-info',
   }
 };
 
@@ -242,6 +243,52 @@ export class ApiService {
       return true;
     } catch (error) {
       console.error('Error deleting food record:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user information
+   */
+  static async getUserInfo(): Promise<any | null> {
+    try {
+      console.log('Fetching user information from API...');
+      const token = await this.getSessionToken();
+      
+      if (!token) {
+        console.error('No valid session token available');
+        throw new Error('No valid session token');
+      }
+
+      const url = `${API_CONFIG.baseUrl}${API_CONFIG.endpoints.userInfo}`;
+      console.log('Making GET request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Get user info response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Get user info error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Get user info response:', data);
+      
+      if (data.data) {
+        return data.data;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching user information:', error);
       throw error;
     }
   }

@@ -21,7 +21,7 @@ resource "aws_cognito_user_pool" "main" {
   #   password: 'password',
   #   attributes: {
   #     email: 'user@example.com',
-  #     'custom:account_type': 'individual' // or 'dealer'
+  #     'custom:account_type': 'basic' // or 'premium'
   #   }
   # }
 
