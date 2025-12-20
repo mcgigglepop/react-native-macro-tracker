@@ -17,9 +17,10 @@ import ApiService, { FoodRecord } from '../services/apiService';
 
 interface LogFoodScreenProps {
   navigation: any;
+  route: any;
 }
 
-const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
+const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [foodName, setFoodName] = useState('');
   const [calories, setCalories] = useState('');
@@ -36,7 +37,12 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
     return new Date().toISOString().split('T')[0];
   };
   
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
+  // Initialize selectedDate from route params (from Dashboard) or default to today
+  const getInitialDate = () => {
+    return route.params?.date || getTodayDate();
+  };
+  
+  const [selectedDate, setSelectedDate] = useState<string>(getInitialDate());
 
   // Calculate totals from food records
   const dailyCalories = foodRecords.reduce((sum, record) => sum + (record.calories || 0), 0);
@@ -54,11 +60,25 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
   useEffect(() => {
     // Set up focus listener to refresh data when screen is focused
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchFoodRecords(selectedDate);
+      // Check if a date was passed from navigation params (e.g., from Dashboard screen)
+      const dateFromParams = route.params?.date;
+      if (dateFromParams && dateFromParams !== selectedDate) {
+        setSelectedDate(dateFromParams);
+      } else {
+        fetchFoodRecords(selectedDate);
+      }
     });
 
     return unsubscribe;
-  }, [navigation, selectedDate]);
+  }, [navigation, selectedDate, route.params?.date]);
+
+  // Also check params on mount/update
+  useEffect(() => {
+    const dateFromParams = route.params?.date;
+    if (dateFromParams && dateFromParams !== selectedDate) {
+      setSelectedDate(dateFromParams);
+    }
+  }, [route.params?.date]);
 
   const fetchFoodRecords = async (date?: string) => {
     try {
@@ -252,7 +272,7 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* Fixed Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => navigation.navigate('Dashboard', { date: selectedDate })}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Food Journal</Text>

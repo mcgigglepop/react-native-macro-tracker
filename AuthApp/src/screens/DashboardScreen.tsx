@@ -14,9 +14,10 @@ import ApiService, { FoodRecord } from '../services/apiService';
 
 interface DashboardScreenProps {
   navigation: any;
+  route: any;
 }
 
-const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) => {
   const { logout } = useAuth();
   const [foodRecords, setFoodRecords] = useState<FoodRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,11 +46,25 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   useEffect(() => {
     // Set up focus listener to refresh data when screen is focused
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchFoodRecords(selectedDate);
+      // Check if a date was passed from navigation params (e.g., from LogFood screen)
+      const dateFromParams = route.params?.date;
+      if (dateFromParams && dateFromParams !== selectedDate) {
+        setSelectedDate(dateFromParams);
+      } else {
+        fetchFoodRecords(selectedDate);
+      }
     });
 
     return unsubscribe;
-  }, [navigation, selectedDate]);
+  }, [navigation, selectedDate, route.params?.date]);
+
+  // Also check params on mount/update
+  useEffect(() => {
+    const dateFromParams = route.params?.date;
+    if (dateFromParams && dateFromParams !== selectedDate) {
+      setSelectedDate(dateFromParams);
+    }
+  }, [route.params?.date]);
 
   const fetchFoodRecords = async (date?: string) => {
     try {
@@ -266,7 +281,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             {/* Log Food Button */}
             <TouchableOpacity 
               style={styles.logFoodButton}
-              onPress={() => navigation.navigate('LogFood')}
+              onPress={() => navigation.navigate('LogFood', { date: selectedDate })}
             >
               <Text style={styles.logFoodButtonText}>Food Journal</Text>
         </TouchableOpacity>
