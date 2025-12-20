@@ -24,6 +24,18 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
   const [centeredWeekAverage, setCenteredWeekAverage] = useState<number | null>(null);
   const [centeredWeekDaysRemaining, setCenteredWeekDaysRemaining] = useState<number>(0);
   const [loadingAverages, setLoadingAverages] = useState(false);
+  const [sevenDayTotals, setSevenDayTotals] = useState<{
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  } | null>(null);
+  const [centeredWeekTotals, setCenteredWeekTotals] = useState<{
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  } | null>(null);
   
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -130,20 +142,43 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
       const centeredWeekData = await ApiService.getFoodRecordsRange(threeDaysAgoStr, centeredWeekEndDate);
 
       if (sevenDayData) {
-        // Calculate 7-day rolling average
+        // Calculate 7-day rolling average and totals
         const days = Object.keys(sevenDayData).sort();
-        const totalCalories = days.reduce((sum, date) => sum + (sevenDayData[date]?.calories || 0), 0);
-        const average = days.length > 0 ? totalCalories / days.length : 0;
+        const totals = days.reduce((acc, date) => ({
+          calories: acc.calories + (sevenDayData[date]?.calories || 0),
+          protein: acc.protein + (sevenDayData[date]?.protein || 0),
+          carbs: acc.carbs + (sevenDayData[date]?.carbs || 0),
+          fat: acc.fat + (sevenDayData[date]?.fat || 0),
+        }), {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+        });
+        
+        const average = days.length > 0 ? totals.calories / days.length : 0;
         setSevenDayAverage(average);
+        setSevenDayTotals(totals);
       }
 
       if (centeredWeekData) {
-        // Calculate centered week average (so far)
+        // Calculate centered week average and totals (so far)
         const days = Object.keys(centeredWeekData).sort();
-        const totalCalories = days.reduce((sum, date) => sum + (centeredWeekData[date]?.calories || 0), 0);
+        const totals = days.reduce((acc, date) => ({
+          calories: acc.calories + (centeredWeekData[date]?.calories || 0),
+          protein: acc.protein + (centeredWeekData[date]?.protein || 0),
+          carbs: acc.carbs + (centeredWeekData[date]?.carbs || 0),
+          fat: acc.fat + (centeredWeekData[date]?.fat || 0),
+        }), {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+        });
         const daysSoFar = days.length;
-        const average = daysSoFar > 0 ? totalCalories / daysSoFar : 0;
+        const average = daysSoFar > 0 ? totals.calories / daysSoFar : 0;
         setCenteredWeekAverage(average);
+        setCenteredWeekTotals(totals);
         
         // Calculate remaining days: 7-day period centered on selected date
         // If viewing a past date, all 7 days are in the past, so 0 remaining
@@ -168,6 +203,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
         console.log('Averages endpoint not available (likely not deployed yet)');
         setSevenDayAverage(null);
         setCenteredWeekAverage(null);
+        setSevenDayTotals(null);
+        setCenteredWeekTotals(null);
       }
       // Don't set error state - averages are secondary data
     } finally {
@@ -250,8 +287,8 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
   // Simple pie chart component
   const PieChart = () => {
     const hasMacros = totalMacroCalories > 0;
-    
-    return (
+
+  return (
       <View style={styles.pieChartContainer}>
         <View style={styles.pieChartWrapper}>
           {/* Circular pie chart visualization */}
@@ -293,7 +330,7 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
             <Text style={styles.pieChartCenterText}>Macros</Text>
           </View>
         </View>
-        
+
         {/* Legend */}
         <View style={styles.legend}>
           <View style={styles.legendItem}>
@@ -321,31 +358,32 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Dashboard</Text>
+        <TouchableOpacity style={styles.profileButtonMinimal} onPress={handleProfilePress}>
+          <Text style={styles.profileButtonTextMinimal}>Profile</Text>
+        </TouchableOpacity>
+      </View>
+        
+      {/* Date Selector - Fixed */}
+      <View style={styles.dateSelector}>
+          <TouchableOpacity 
+          style={styles.dateArrow}
+          onPress={goToPreviousDay}
+          >
+          <Text style={styles.dateArrowText}>←</Text>
+          </TouchableOpacity>
+        <Text style={styles.dateText}>{formatDisplayDate(selectedDate)}</Text>
+          <TouchableOpacity 
+          style={[styles.dateArrow, !canGoToNextDay() && styles.dateArrowDisabled]}
+          onPress={goToNextDay}
+          disabled={!canGoToNextDay()}
+        >
+          <Text style={[styles.dateArrowText, !canGoToNextDay() && styles.dateArrowTextDisabled]}>→</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Dashboard</Text>
-          <TouchableOpacity style={styles.profileButtonMinimal} onPress={handleProfilePress}>
-            <Text style={styles.profileButtonTextMinimal}>Profile</Text>
-          </TouchableOpacity>
-        </View>
-          
-        {/* Date Selector */}
-        <View style={styles.dateSelector}>
-          <TouchableOpacity 
-            style={styles.dateArrow}
-            onPress={goToPreviousDay}
-          >
-            <Text style={styles.dateArrowText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.dateText}>{formatDisplayDate(selectedDate)}</Text>
-          <TouchableOpacity 
-            style={[styles.dateArrow, !canGoToNextDay() && styles.dateArrowDisabled]}
-            onPress={goToNextDay}
-            disabled={!canGoToNextDay()}
-          >
-            <Text style={[styles.dateArrowText, !canGoToNextDay() && styles.dateArrowTextDisabled]}>→</Text>
-          </TouchableOpacity>
-        </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -357,7 +395,7 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity style={styles.retryButton} onPress={() => fetchFoodRecords(selectedDate)}>
               <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
+          </TouchableOpacity>
           </View>
         ) : (
           <>
@@ -373,19 +411,19 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
                   <Text style={styles.averagesSubtext}>
                     7-Day Avg: {loadingAverages ? '...' : sevenDayAverage !== null ? Math.round(sevenDayAverage) : 'N/A'} kcal/day
                   </Text>
-                  <TouchableOpacity 
+          <TouchableOpacity 
                     style={styles.infoButton}
                     onPress={showAveragesExplanation}
-                  >
+          >
                     <Text style={styles.infoButtonText}>?</Text>
-                  </TouchableOpacity>
+          </TouchableOpacity>
                 </View>
                 <Text style={styles.averagesSubtext}>
                   Week Avg: {loadingAverages ? '...' : centeredWeekAverage !== null ? Math.round(centeredWeekAverage) : 'N/A'} kcal/day
                   {centeredWeekDaysRemaining > 0 && ` (${centeredWeekDaysRemaining} day${centeredWeekDaysRemaining !== 1 ? 's' : ''} remaining)`}
                 </Text>
               </View>
-            </View>
+        </View>
 
             {/* Log Food Button */}
             <TouchableOpacity 
@@ -419,6 +457,53 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
               <Text style={styles.sectionTitle}>Calorie Breakdown by Macro</Text>
               <PieChart />
             </View>
+
+            {/* 7-Day Totals Card */}
+            <View style={styles.sevenDayTotalsCard}>
+              <Text style={styles.sectionTitle}>7-Day Rolling Totals</Text>
+              {loadingAverages ? (
+                <View style={styles.totalsLoadingContainer}>
+                  <ActivityIndicator size="small" color="#007AFF" />
+                  <Text style={styles.totalsLoadingText}>Loading...</Text>
+                </View>
+              ) : sevenDayTotals ? (
+                <>
+                  <View style={styles.totalsCaloriesContainer}>
+                    <Text style={styles.totalsCaloriesValue}>{Math.round(sevenDayTotals.calories)}</Text>
+                    <Text style={styles.totalsCaloriesLabel}>Total Calories Consumed (past 7 days)</Text>
+                  </View>
+                  <View style={styles.totalsMacrosGrid}>
+                    <View style={styles.totalsMacroItem}>
+                      <Text style={styles.totalsMacroValue}>{Math.round(sevenDayTotals.protein)}g</Text>
+                      <Text style={styles.totalsMacroLabel}>Protein</Text>
+                    </View>
+                    <View style={styles.totalsMacroItem}>
+                      <Text style={styles.totalsMacroValue}>{Math.round(sevenDayTotals.carbs)}g</Text>
+                      <Text style={styles.totalsMacroLabel}>Carbs</Text>
+                    </View>
+                    <View style={styles.totalsMacroItem}>
+                      <Text style={styles.totalsMacroValue}>{Math.round(sevenDayTotals.fat)}g</Text>
+                      <Text style={styles.totalsMacroLabel}>Fat</Text>
+                    </View>
+                  </View>
+                  
+                  {/* Centered Week Totals */}
+                  {centeredWeekTotals && centeredWeekDaysRemaining > 0 && (
+                    <>
+                      <View style={styles.centeredWeekDivider} />
+                      <View style={styles.totalsCaloriesContainer}>
+                        <Text style={styles.totalsCaloriesValue}>{Math.round(centeredWeekTotals.calories)}</Text>
+                        <Text style={styles.totalsCaloriesLabel}>
+                          Week Calorie Average ({centeredWeekDaysRemaining} day{centeredWeekDaysRemaining !== 1 ? 's' : ''} remaining)
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.totalsUnavailableText}>Totals unavailable</Text>
+              )}
+            </View>
           </>
         )}
       </ScrollView>
@@ -438,7 +523,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: '#f5f5f5',
   },
   title: {
     fontSize: 32,
@@ -449,8 +537,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#f5f5f5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   dateArrow: {
     width: 40,
@@ -642,6 +733,76 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+  },
+  sevenDayTotalsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  totalsLoadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  totalsLoadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  totalsCaloriesContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  totalsCaloriesValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 4,
+  },
+  totalsCaloriesLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  totalsMacrosGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  totalsMacroItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  totalsMacroValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 4,
+  },
+  totalsMacroLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  totalsUnavailableText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 14,
+    paddingVertical: 20,
+  },
+  centeredWeekDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 20,
+    marginHorizontal: -18,
   },
   pieChartContainer: {
     alignItems: 'center',
