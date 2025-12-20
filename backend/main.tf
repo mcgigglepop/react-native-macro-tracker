@@ -75,6 +75,33 @@ locals {
       })
       timeout = 10
     }
+    delete-food-record = {
+      zip         = "${path.module}/../dist/zips/deleteFoodRecord.zip"
+      description = "API Gateway Lambda function for deleting food log records"
+      env         = { 
+        FOOD_RECORDS_TABLE = module.dynamodb.table_names["food-records"]
+      }
+      iam_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "dynamodb:GetItem",
+              "dynamodb:DeleteItem"
+            ]
+            Resource = [
+              "arn:aws:logs:*:*:*",
+              module.dynamodb.table_arns["food-records"]
+            ]
+          }
+        ]
+      })
+      timeout = 10
+    }
   }
 }
 
@@ -151,9 +178,11 @@ module "api-gw" {
   lambda_functions = {
     "create-food-record" = module.lambda["create-food-record"].invoke_arn
     "get-food-records"   = module.lambda["get-food-records"].invoke_arn
+    "delete-food-record" = module.lambda["delete-food-record"].invoke_arn
   }
   lambda_function_names = {
     "create-food-record" = module.lambda["create-food-record"].function_name
     "get-food-records"   = module.lambda["get-food-records"].function_name
+    "delete-food-record" = module.lambda["delete-food-record"].function_name
   }
 }

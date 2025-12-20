@@ -25,9 +25,11 @@ resource "aws_api_gateway_deployment" "this" {
   depends_on = [
     aws_api_gateway_method.food_records_post,
     aws_api_gateway_method.food_records_get,
+    aws_api_gateway_method.food_records_delete,
     aws_api_gateway_method.food_records_options,
     aws_api_gateway_integration.food_records_post,
     aws_api_gateway_integration.food_records_get,
+    aws_api_gateway_integration.food_records_delete,
     aws_api_gateway_integration.food_records_options,
   ]
 
@@ -38,6 +40,7 @@ resource "aws_api_gateway_deployment" "this" {
       authorizer              = aws_api_gateway_authorizer.this.id,
       food_records_post       = aws_api_gateway_method.food_records_post.id,
       food_records_get        = aws_api_gateway_method.food_records_get.id,
+      food_records_delete     = aws_api_gateway_method.food_records_delete.id,
       food_records_options    = aws_api_gateway_method.food_records_options.id,
     }))
   }
@@ -169,7 +172,7 @@ resource "aws_api_gateway_integration_response" "food_records_options" {
 
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,POST,DELETE,OPTIONS'"
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 }
@@ -224,6 +227,40 @@ resource "aws_lambda_permission" "food_records_get" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_names["get-food-records"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
+}
+
+# Resource for /food-records/{recordId}
+resource "aws_api_gateway_resource" "food_records_record_id" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_resource.food_records.id
+  path_part   = "{recordId}"
+}
+
+# DELETE method for deleting a specific food record
+resource "aws_api_gateway_method" "food_records_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.food_records_record_id.id
+  http_method   = "DELETE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.this.id
+}
+
+resource "aws_api_gateway_integration" "food_records_delete" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.food_records_record_id.id
+  http_method = aws_api_gateway_method.food_records_delete.http_method
+
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = var.lambda_functions["delete-food-record"]
+}
+
+resource "aws_lambda_permission" "food_records_delete" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_names["delete-food-record"]
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.this.execution_arn}/*/*"
 }
