@@ -1,4 +1,34 @@
-import React, { useState } from 'react';
+/**
+ * SubscriptionScreen - Handles in-app purchases for premium subscriptions
+ * 
+ * IMPORTANT SETUP NOTES:
+ * 1. Install package: npx expo install expo-in-app-purchases
+ * 2. Configure products in App Store Connect with matching PRODUCT_IDS
+ * 3. Implement backend endpoint to verify receipts with Apple
+ * 4. Update PRODUCT_IDS with your actual product IDs from App Store Connect
+ * 
+ * For testing:
+ * - IAP only works on real devices, not simulators
+ * - Use sandbox test accounts for testing purchases
+ * - Products must be approved in App Store Connect before testing
+ */
+
+/**
+ * SubscriptionScreen - Handles in-app purchases for premium subscriptions
+ * 
+ * IMPORTANT SETUP NOTES:
+ * 1. Install package: npx expo install expo-in-app-purchases
+ * 2. Configure products in App Store Connect with matching PRODUCT_IDS
+ * 3. Implement backend endpoint to verify receipts with Apple
+ * 4. Update PRODUCT_IDS with your actual product IDs from App Store Connect
+ * 
+ * For testing:
+ * - IAP only works on real devices, not simulators
+ * - Use sandbox test accounts for testing purchases
+ * - Products must be approved in App Store Connect before testing
+ */
+
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +37,10 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
+import * as InAppPurchases from 'expo-in-app-purchases';
 import { useSubscription } from '../context/SubscriptionContext';
 
 interface SubscriptionScreenProps {
@@ -24,7 +56,17 @@ interface SubscriptionPlan {
   savings?: string;
   popular?: boolean;
   description: string;
+  productId?: string; // Store product ID from IAP
 }
+
+// Map plan IDs to product IDs (SKUs) - These must match your App Store Connect product IDs
+// TODO: Replace these with your actual product IDs from App Store Connect
+// Format should be: com.yourcompany.appname.productname
+const PRODUCT_IDS: Record<string, string> = {
+  monthly: 'com.yourcompany.macrotracker.monthly',
+  yearly: 'com.yourcompany.macrotracker.yearly',
+  lifetime: 'com.yourcompany.macrotracker.lifetime',
+};
 
 const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -64,22 +106,183 @@ const PREMIUM_FEATURES = [
 ];
 
 const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigation }) => {
-  const { isPremium, accountType, isLoading } = useSubscription();
+  const { isPremium, accountType, isLoading, refreshSubscription } = useSubscription();
   const [processing, setProcessing] = useState(false);
+  const [iapConnected, setIapConnected] = useState(false);
+  const [products, setProducts] = useState<SubscriptionPlan[]>(SUBSCRIPTION_PLANS);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  // Initialize IAP connection and fetch products
+  useEffect(() => {
+    initializeIAP();
+    
+    // Set up purchase listener
+    const purchaseUpdateSubscription = InAppPurchases.setPurchaseListener(({ response, errorCode, results, errorMessage }) => {
+      if (response === InAppPurchases.IAPResponseCode.OK) {
+        results?.forEach((purchase) => {
+          if (purchase.acknowledged) {
+            // Purchase already acknowledged, skip
+            return;
+          }
+          
+          // Handle the purchase
+          handlePurchaseSuccess(purchase);
+        });
+      } else if (response === InAppPurchases.IAPResponseCode.USER_CANCELED) {
+        setProcessing(false);
+        Alert.alert('Purchase Cancelled', 'You cancelled the purchase.');
+      } else {
+        setProcessing(false);
+        Alert.alert('Purchase Error', errorMessage || 'An error occurred during the purchase.');
+      }
+    });
+
+    return () => {
+      // Cleanup
+      purchaseUpdateSubscription.remove();
+      disconnectIAP();
+    };
+  }, []);
+
+  const initializeIAP = async () => {
+    try {
+      setLoadingProducts(true);
+      
+      // Connect to IAP service
+      await InAppPurchases.connectAsync();
+      setIapConnected(true);
+      
+      // Fetch products
+      const productIds = Object.values(PRODUCT_IDS);
+      const { results, responseCode } = await InAppPurchases.getProductsAsync(productIds);
+      
+      if (responseCode === InAppPurchases.IAPResponseCode.OK && results) {
+        // Map IAP products to our plan structure
+        const updatedPlans = SUBSCRIPTION_PLANS.map(plan => {
+          const productId = PRODUCT_IDS[plan.id];
+          const iapProduct = results.find(p => p.productId === productId);
+          
+          if (iapProduct) {
+            return {
+              ...plan,
+              productId: iapProduct.productId,
+              price: iapProduct.price, // Use actual price from IAP
+            };
+          }
+          return plan;
+        });
+        
+        setProducts(updatedPlans);
+      } else {
+        console.warn('Failed to fetch products:', responseCode);
+        // Keep default products if fetch fails (for development/testing)
+      }
+    } catch (error) {
+      console.error('Error initializing IAP:', error);
+      // IAP might not be available in development, keep default products
+      Alert.alert(
+        'IAP Not Available',
+        'In-App Purchases are only available on real devices with proper App Store configuration. Using placeholder prices for development.'
+      );
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const disconnectIAP = async () => {
+    try {
+      if (iapConnected) {
+        await InAppPurchases.disconnectAsync();
+        setIapConnected(false);
+      }
+    } catch (error) {
+      console.error('Error disconnecting IAP:', error);
+    }
+  };
+
+  const handlePurchaseSuccess = async (purchase: InAppPurchases.InAppPurchase) => {
+    try {
+      console.log('Purchase successful:', purchase);
+      
+      // TODO: IMPORTANT - Validate purchase receipt on your backend
+      // SECURITY: Never trust client-side purchase data alone!
+      // You should:
+      // 1. Send the receipt (purchase.receipt) to your backend API
+      // 2. Backend verifies receipt with Apple's servers
+      // 3. Backend updates user's accountType in DynamoDB to 'premium'
+      // 4. Backend optionally updates Cognito user attribute 'custom:account_type'
+      // 5. Then refresh subscription status from your backend
+      
+      // Example backend call (implement this):
+      // const response = await ApiService.verifyPurchase({
+      //   receipt: purchase.receipt,
+      //   productId: purchase.productId,
+      //   transactionId: purchase.orderId,
+      // });
+      
+      // For now, we'll finish the transaction and refresh
+      // NOTE: In production, only finish transaction AFTER backend verification succeeds
+      await InAppPurchases.finishTransactionAsync(purchase, false);
+      
+      // Refresh subscription status (this will fetch from your backend)
+      await refreshSubscription();
+      
+      setProcessing(false);
+      
+      Alert.alert(
+        'Purchase Successful!',
+        'Your subscription has been activated. Thank you for upgrading to Premium!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate back to previous screen
+              navigation.goBack();
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error processing purchase:', error);
+      setProcessing(false);
+      Alert.alert('Error', 'Failed to process purchase. Please contact support.');
+    }
+  };
 
   const handleSubscribe = async (planId: string) => {
-    // TODO: Integrate with Expo IAP
-    // For now, show a placeholder alert
-    setProcessing(true);
+    const productId = PRODUCT_IDS[planId];
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    Alert.alert(
-      'Coming Soon',
-      `Subscription purchase for ${planId} will be available soon. This will be integrated with Apple In-App Purchases.`,
-      [{ text: 'OK', onPress: () => setProcessing(false) }]
-    );
+    if (!productId) {
+      Alert.alert('Error', 'Product ID not found for this plan.');
+      return;
+    }
+
+    if (!iapConnected) {
+      Alert.alert(
+        'IAP Not Available',
+        'In-App Purchases are not available. Please ensure you are on a real device with proper App Store configuration.'
+      );
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      
+      // Request purchase
+      await InAppPurchases.purchaseItemAsync(productId);
+      
+      // Purchase result will be handled by the purchase listener
+      // Don't set processing to false here - let the listener handle it
+    } catch (error: any) {
+      console.error('Error initiating purchase:', error);
+      setProcessing(false);
+      
+      if (error.code === 'E_USER_CANCELLED') {
+        Alert.alert('Purchase Cancelled', 'You cancelled the purchase.');
+      } else {
+        Alert.alert('Purchase Error', error.message || 'Failed to initiate purchase. Please try again.');
+      }
+    }
   };
 
   const handleManageSubscription = () => {
@@ -147,7 +350,14 @@ const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ navigation }) =
             <Text style={styles.plansTitle}>Choose Your Plan</Text>
             <Text style={styles.plansSubtitle}>Upgrade to unlock all features</Text>
             
-            {SUBSCRIPTION_PLANS.map((plan) => (
+            {loadingProducts && (
+              <View style={styles.loadingProductsContainer}>
+                <ActivityIndicator size="small" color="#007AFF" />
+                <Text style={styles.loadingProductsText}>Loading subscription plans...</Text>
+              </View>
+            )}
+            
+            {products.map((plan) => (
               <TouchableOpacity
                 key={plan.id}
                 style={[
@@ -478,6 +688,20 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  loadingProductsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  loadingProductsText: {
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#666',
   },
 });
 
