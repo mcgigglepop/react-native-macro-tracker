@@ -49,9 +49,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
       // Check if a date was passed from navigation params (e.g., from LogFood screen)
       const dateFromParams = route.params?.date;
       if (dateFromParams && dateFromParams !== selectedDate) {
+        // Date changed, update it (which will trigger the useEffect to fetch)
         setSelectedDate(dateFromParams);
       } else {
-        fetchFoodRecords(selectedDate);
+        // Always refresh data when screen comes into focus to ensure we have latest data
+        // Use the date from params if available, otherwise use selectedDate
+        const dateToFetch = dateFromParams || selectedDate;
+        fetchFoodRecords(dateToFetch);
       }
     });
 
