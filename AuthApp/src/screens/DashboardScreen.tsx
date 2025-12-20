@@ -470,7 +470,7 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
                 <>
                   <View style={styles.totalsCaloriesContainer}>
                     <Text style={styles.totalsCaloriesValue}>{Math.round(sevenDayTotals.calories)}</Text>
-                    <Text style={styles.totalsCaloriesLabel}>Total Calories Consumed (past 7 days)</Text>
+                    <Text style={styles.totalsMacrosSubtext}>Total Calories Consumed (past 7 days)</Text>
                   </View>
                   <View style={styles.totalsMacrosGrid}>
                     <View style={styles.totalsMacroItem}>
@@ -486,6 +486,7 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
                       <Text style={styles.totalsMacroLabel}>Fat</Text>
                     </View>
                   </View>
+                  <Text style={styles.totalsMacrosSubtext}>total macros consumed (past 7 days)</Text>
                   
                   {/* Centered Week Totals */}
                   {centeredWeekTotals && centeredWeekDaysRemaining > 0 && (
@@ -493,7 +494,7 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
                       <View style={styles.centeredWeekDivider} />
                       <View style={styles.totalsCaloriesContainer}>
                         <Text style={styles.totalsCaloriesValue}>{Math.round(centeredWeekTotals.calories)}</Text>
-                        <Text style={styles.totalsCaloriesLabel}>
+                        <Text style={styles.totalsMacrosSubtext}>
                           Week Calorie Average ({centeredWeekDaysRemaining} day{centeredWeekDaysRemaining !== 1 ? 's' : ''} remaining)
                         </Text>
                       </View>
@@ -791,6 +792,12 @@ const styles = StyleSheet.create({
   totalsMacroLabel: {
     fontSize: 14,
     color: '#666',
+  },
+  totalsMacrosSubtext: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 12,
   },
   totalsUnavailableText: {
     textAlign: 'center',
