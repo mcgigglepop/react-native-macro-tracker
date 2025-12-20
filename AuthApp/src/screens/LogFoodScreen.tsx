@@ -14,6 +14,9 @@ import {
   Alert
 } from 'react-native';
 import ApiService, { FoodRecord } from '../services/apiService';
+import { useSubscription } from '../context/SubscriptionContext';
+import { canAccessDate, getDateRestrictionMessage } from '../utils/subscriptionUtils';
+import { UpgradePrompt } from '../components/UpgradePrompt';
 
 interface LogFoodScreenProps {
   navigation: any;
@@ -21,6 +24,7 @@ interface LogFoodScreenProps {
 }
 
 const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
+  const { isPremium } = useSubscription();
   const [modalVisible, setModalVisible] = useState(false);
   const [foodName, setFoodName] = useState('');
   const [calories, setCalories] = useState('');
@@ -31,6 +35,8 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradePromptMessage, setUpgradePromptMessage] = useState('');
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -54,8 +60,16 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
 
   // Fetch food records when selectedDate changes and when screen comes into focus
   useEffect(() => {
+    // Check if the selected date is accessible, if not, reset to today
+    if (!canAccessDate(selectedDate, isPremium)) {
+      const today = getTodayDate();
+      if (selectedDate !== today) {
+        setSelectedDate(today);
+        return;
+      }
+    }
     fetchFoodRecords(selectedDate);
-  }, [selectedDate]);
+  }, [selectedDate, isPremium]);
 
   useEffect(() => {
     // Set up focus listener to refresh data when screen is focused
@@ -102,7 +116,15 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
   const goToPreviousDay = () => {
     const date = new Date(selectedDate);
     date.setDate(date.getDate() - 1);
-    setSelectedDate(date.toISOString().split('T')[0]);
+    const newDate = date.toISOString().split('T')[0];
+    
+    if (!canAccessDate(newDate, isPremium)) {
+      setUpgradePromptMessage(getDateRestrictionMessage(isPremium));
+      setShowUpgradePrompt(true);
+      return;
+    }
+    
+    setSelectedDate(newDate);
   };
 
   // Navigate to next day
@@ -149,6 +171,14 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
 
   const isFutureDate = () => {
     return selectedDate > getTodayDate();
+  };
+
+  const canLogFoodForDate = () => {
+    if (isFutureDate()) return false;
+    // Premium users can log food for any past/current date
+    if (isPremium) return true;
+    // Free users can only log food for dates within the free range (last 7 days)
+    return canAccessDate(selectedDate, false);
   };
 
   const handleOpenModal = () => {
@@ -202,6 +232,17 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
   };
 
   const handleSaveFood = async () => {
+    // Check if user can log food for this date
+    if (!canLogFoodForDate()) {
+      setUpgradePromptMessage(
+        isFutureDate() 
+          ? 'Cannot add food records for future dates.'
+          : getDateRestrictionMessage(isPremium)
+      );
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     // Validate input
     if (!foodName.trim()) {
       Alert.alert('Error', 'Please enter a food name');
@@ -326,11 +367,11 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
 
       {/* Fixed Add Food Button */}
       <TouchableOpacity 
-        style={[styles.addFoodButton, isFutureDate() && styles.addFoodButtonDisabled]}
+        style={[styles.addFoodButton, (!canLogFoodForDate()) && styles.addFoodButtonDisabled]}
         onPress={handleOpenModal}
-        disabled={isFutureDate()}
+        disabled={!canLogFoodForDate()}
       >
-        <Text style={[styles.addFoodButtonText, isFutureDate() && styles.addFoodButtonTextDisabled]}>
+        <Text style={[styles.addFoodButtonText, (!canLogFoodForDate()) && styles.addFoodButtonTextDisabled]}>
           + Log Food
         </Text>
       </TouchableOpacity>
@@ -501,6 +542,19 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Upgrade Prompt */}
+      <UpgradePrompt
+        visible={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
+        onUpgrade={() => {
+          setShowUpgradePrompt(false);
+          // Navigate to profile where subscription management will be (for now)
+          // Later, navigate to a dedicated subscription/paywall screen
+          navigation.navigate('Profile');
+        }}
+        message={upgradePromptMessage}
+      />
     </SafeAreaView>
   );
 };

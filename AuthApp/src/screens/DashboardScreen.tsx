@@ -10,6 +10,9 @@ import {
   Alert
 } from 'react-native';
 import ApiService, { FoodRecord } from '../services/apiService';
+import { useSubscription } from '../context/SubscriptionContext';
+import { canAccessDate, getDateRestrictionMessage } from '../utils/subscriptionUtils';
+import { UpgradePrompt } from '../components/UpgradePrompt';
 
 interface DashboardScreenProps {
   navigation: any;
@@ -17,6 +20,7 @@ interface DashboardScreenProps {
 }
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) => {
+  const { isPremium } = useSubscription();
   const [foodRecords, setFoodRecords] = useState<FoodRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +40,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
     carbs: number;
     fat: number;
   } | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradePromptMessage, setUpgradePromptMessage] = useState('');
   
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -54,18 +60,37 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
 
   // Fetch food records when selectedDate changes and when screen comes into focus
   useEffect(() => {
+    // Check if the selected date is accessible, if not, reset to today (for free users)
+    if (!canAccessDate(selectedDate, isPremium)) {
+      const today = getTodayDate();
+      if (selectedDate !== today) {
+        setSelectedDate(today);
+        return;
+      }
+    }
     fetchFoodRecords(selectedDate);
-    fetchAverages(selectedDate);
-  }, [selectedDate]);
+    // Only fetch averages for premium users
+    if (isPremium) {
+      fetchAverages(selectedDate);
+    } else {
+      // Clear averages for free users
+      setSevenDayAverage(null);
+      setCenteredWeekAverage(null);
+      setSevenDayTotals(null);
+      setCenteredWeekTotals(null);
+    }
+  }, [selectedDate, isPremium]);
 
-  // Fetch averages when component mounts or screen is focused
+  // Fetch averages when component mounts or screen is focused (premium only)
   useEffect(() => {
+    if (!isPremium) return;
+    
     const unsubscribe = navigation.addListener('focus', () => {
       fetchAverages(selectedDate);
     });
 
     return unsubscribe;
-  }, [navigation, selectedDate]);
+  }, [navigation, selectedDate, isPremium]);
 
   useEffect(() => {
     // Set up focus listener to refresh data when screen is focused
@@ -216,7 +241,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
   const goToPreviousDay = () => {
     const date = new Date(selectedDate);
     date.setDate(date.getDate() - 1);
-    setSelectedDate(date.toISOString().split('T')[0]);
+    const newDate = date.toISOString().split('T')[0];
+    
+    if (!canAccessDate(newDate, isPremium)) {
+      setUpgradePromptMessage(getDateRestrictionMessage(isPremium));
+      setShowUpgradePrompt(true);
+      return;
+    }
+    
+    setSelectedDate(newDate);
   };
 
   // Navigate to next day
@@ -405,24 +438,26 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
               <Text style={styles.caloriesValue}>{dailyCalories}</Text>
               <Text style={styles.caloriesUnit}>kcal</Text>
               
-              {/* Calorie Averages Subtext */}
-              <View style={styles.averagesSubtextContainer}>
-                <View style={styles.averageRow}>
+              {/* Calorie Averages Subtext - Premium Only */}
+              {isPremium && (
+                <View style={styles.averagesSubtextContainer}>
+                  <View style={styles.averageRow}>
+                    <Text style={styles.averagesSubtext}>
+                      7-Day Avg: {loadingAverages ? '...' : sevenDayAverage !== null ? Math.round(sevenDayAverage) : 'N/A'} kcal/day
+                    </Text>
+                    <TouchableOpacity 
+                      style={styles.infoButton}
+                      onPress={showAveragesExplanation}
+                    >
+                      <Text style={styles.infoButtonText}>?</Text>
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.averagesSubtext}>
-                    7-Day Avg: {loadingAverages ? '...' : sevenDayAverage !== null ? Math.round(sevenDayAverage) : 'N/A'} kcal/day
+                    Week Avg: {loadingAverages ? '...' : centeredWeekAverage !== null ? Math.round(centeredWeekAverage) : 'N/A'} kcal/day
+                    {centeredWeekDaysRemaining > 0 && ` (${centeredWeekDaysRemaining} day${centeredWeekDaysRemaining !== 1 ? 's' : ''} remaining)`}
                   </Text>
-          <TouchableOpacity 
-                    style={styles.infoButton}
-                    onPress={showAveragesExplanation}
-          >
-                    <Text style={styles.infoButtonText}>?</Text>
-          </TouchableOpacity>
                 </View>
-                <Text style={styles.averagesSubtext}>
-                  Week Avg: {loadingAverages ? '...' : centeredWeekAverage !== null ? Math.round(centeredWeekAverage) : 'N/A'} kcal/day
-                  {centeredWeekDaysRemaining > 0 && ` (${centeredWeekDaysRemaining} day${centeredWeekDaysRemaining !== 1 ? 's' : ''} remaining)`}
-                </Text>
-              </View>
+              )}
         </View>
 
             {/* Log Food Button */}
@@ -458,7 +493,8 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
               <PieChart />
             </View>
 
-            {/* 7-Day Totals Card */}
+            {/* 7-Day Totals Card - Premium Only */}
+            {isPremium && (
             <View style={styles.sevenDayTotalsCard}>
               <Text style={styles.sectionTitle}>7-Day Rolling Totals</Text>
               {loadingAverages ? (
@@ -505,9 +541,23 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
                 <Text style={styles.totalsUnavailableText}>Totals unavailable</Text>
               )}
             </View>
+            )}
           </>
         )}
       </ScrollView>
+
+      {/* Upgrade Prompt */}
+      <UpgradePrompt
+        visible={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
+        onUpgrade={() => {
+          setShowUpgradePrompt(false);
+          // Navigate to profile where subscription management will be (for now)
+          // Later, navigate to a dedicated subscription/paywall screen
+          navigation.navigate('Profile');
+        }}
+        message={upgradePromptMessage}
+      />
     </SafeAreaView>
   );
 };
