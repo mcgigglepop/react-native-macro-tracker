@@ -177,6 +177,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   <Text style={styles.infoValue}>{formatDate(userInfo?.updatedAt)}</Text>
                 </View>
               </View>
+              
+              {/* Manage Subscription Button */}
+              <TouchableOpacity 
+                style={styles.subscriptionButton}
+                onPress={() => navigation.navigate('Subscription')}
+              >
+                <Text style={styles.subscriptionButtonText}>
+                  {userInfo?.accountType === 'premium' ? 'Manage Subscription' : 'Upgrade to Premium'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </>
         )}
@@ -311,6 +321,26 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  subscriptionButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    marginTop: 16,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  subscriptionButtonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: '600',
   },
   logoutButton: {

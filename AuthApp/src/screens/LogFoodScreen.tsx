@@ -549,9 +549,7 @@ const LogFoodScreen: React.FC<LogFoodScreenProps> = ({ navigation, route }) => {
         onClose={() => setShowUpgradePrompt(false)}
         onUpgrade={() => {
           setShowUpgradePrompt(false);
-          // Navigate to profile where subscription management will be (for now)
-          // Later, navigate to a dedicated subscription/paywall screen
-          navigation.navigate('Profile');
+          navigation.navigate('Subscription');
         }}
         message={upgradePromptMessage}
       />

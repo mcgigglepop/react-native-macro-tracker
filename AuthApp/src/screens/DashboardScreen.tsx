@@ -552,9 +552,7 @@ Shows your average for a 7-day period centered on the selected date (3 days befo
         onClose={() => setShowUpgradePrompt(false)}
         onUpgrade={() => {
           setShowUpgradePrompt(false);
-          // Navigate to profile where subscription management will be (for now)
-          // Later, navigate to a dedicated subscription/paywall screen
-          navigation.navigate('Profile');
+          navigation.navigate('Subscription');
         }}
         message={upgradePromptMessage}
       />
