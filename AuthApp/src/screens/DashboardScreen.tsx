@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import ApiService, { FoodRecord } from '../services/apiService';
 
@@ -42,17 +43,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
   // Fetch food records when selectedDate changes and when screen comes into focus
   useEffect(() => {
     fetchFoodRecords(selectedDate);
-    fetchAverages();
+    fetchAverages(selectedDate);
   }, [selectedDate]);
 
   // Fetch averages when component mounts or screen is focused
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      fetchAverages();
+      fetchAverages(selectedDate);
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, selectedDate]);
 
   useEffect(() => {
     // Set up focus listener to refresh data when screen is focused
@@ -99,28 +100,34 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
     }
   };
 
-  const fetchAverages = async () => {
+  const fetchAverages = async (date: string = selectedDate) => {
     try {
       setLoadingAverages(true);
+      const selectedDateObj = new Date(date + 'T00:00:00');
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
+      const isFutureDate = date > todayStr;
 
-      // Calculate 7-day rolling average (last 7 days including today)
-      const sevenDaysAgo = new Date(today);
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // 6 days ago + today = 7 days
+      // Calculate 7-day rolling average (last 7 days including selected date)
+      const sevenDaysAgo = new Date(selectedDateObj);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // 6 days ago + selected date = 7 days
       const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
-      // Calculate centered 7-day period (3 days before, today, 3 days after)
-      // Since we can't see future, we'll use: 3 days before, today, and show what's remaining
-      const threeDaysAgo = new Date(today);
+      // Calculate centered 7-day period (3 days before, selected date, 3 days after)
+      // Since we can't see future, we'll use: 3 days before, selected date, and show what's remaining
+      const threeDaysAgo = new Date(selectedDateObj);
       threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
       const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
-
-      // Fetch 7-day rolling data
-      const sevenDayData = await ApiService.getFoodRecordsRange(sevenDaysAgoStr, todayStr);
       
-      // Fetch centered week data (last 3 days + today)
-      const centeredWeekData = await ApiService.getFoodRecordsRange(threeDaysAgoStr, todayStr);
+      // For centered week, end date is selected date (or today if selected date is in the future)
+      const centeredWeekEndDate = isFutureDate ? todayStr : date;
+
+      // Fetch 7-day rolling data (ending on selected date, or today if selected date is in the future)
+      const sevenDayEndDate = isFutureDate ? todayStr : date;
+      const sevenDayData = await ApiService.getFoodRecordsRange(sevenDaysAgoStr, sevenDayEndDate);
+      
+      // Fetch centered week data (3 days before + selected date)
+      const centeredWeekData = await ApiService.getFoodRecordsRange(threeDaysAgoStr, centeredWeekEndDate);
 
       if (sevenDayData) {
         // Calculate 7-day rolling average
@@ -137,7 +144,22 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
         const daysSoFar = days.length;
         const average = daysSoFar > 0 ? totalCalories / daysSoFar : 0;
         setCenteredWeekAverage(average);
-        setCenteredWeekDaysRemaining(7 - daysSoFar); // Remaining days in the 7-day period
+        
+        // Calculate remaining days: 7-day period centered on selected date
+        // If viewing a past date, all 7 days are in the past, so 0 remaining
+        // If viewing today or future, calculate remaining days
+        const selectedDateObj = new Date(date + 'T00:00:00');
+        const threeDaysAfter = new Date(selectedDateObj);
+        threeDaysAfter.setDate(threeDaysAfter.getDate() + 3);
+        const threeDaysAfterStr = threeDaysAfter.toISOString().split('T')[0];
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        // Remaining days are the days after selected date that haven't happened yet
+        const remainingDays = threeDaysAfterStr > todayStr 
+          ? Math.max(0, Math.ceil((new Date(threeDaysAfterStr).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24)))
+          : 0;
+        setCenteredWeekDaysRemaining(remainingDays);
       }
     } catch (err: any) {
       console.error('Error fetching averages:', err);
@@ -200,6 +222,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
     const date = new Date(selectedDate);
     date.setDate(date.getDate() + 1);
     return date.toISOString().split('T')[0] <= getTodayDate();
+  };
+
+  const showAveragesExplanation = () => {
+    Alert.alert(
+      'Understanding Calorie Averages',
+      `7-Day Rolling Average:
+Shows your average daily calories over the last 7 days ending on the selected date. This helps you see your recent calorie intake trend.
+
+Current Week Average:
+Shows your average for a 7-day period centered on the selected date (3 days before, selected date, 3 days after). This helps you plan for the remaining days in that week period.`,
+      [{ text: 'Got it', style: 'default' }],
+      { cancelable: true }
+    );
   };
 
   const handleProfilePress = () => {
@@ -334,9 +369,17 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation, route }) 
               
               {/* Calorie Averages Subtext */}
               <View style={styles.averagesSubtextContainer}>
-                <Text style={styles.averagesSubtext}>
-                  7-Day Avg: {loadingAverages ? '...' : sevenDayAverage !== null ? Math.round(sevenDayAverage) : 'N/A'} kcal/day
-                </Text>
+                <View style={styles.averageRow}>
+                  <Text style={styles.averagesSubtext}>
+                    7-Day Avg: {loadingAverages ? '...' : sevenDayAverage !== null ? Math.round(sevenDayAverage) : 'N/A'} kcal/day
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.infoButton}
+                    onPress={showAveragesExplanation}
+                  >
+                    <Text style={styles.infoButtonText}>?</Text>
+                  </TouchableOpacity>
+                </View>
                 <Text style={styles.averagesSubtext}>
                   Week Avg: {loadingAverages ? '...' : centeredWeekAverage !== null ? Math.round(centeredWeekAverage) : 'N/A'} kcal/day
                   {centeredWeekDaysRemaining > 0 && ` (${centeredWeekDaysRemaining} day${centeredWeekDaysRemaining !== 1 ? 's' : ''} remaining)`}
@@ -521,11 +564,30 @@ const styles = StyleSheet.create({
     borderTopColor: '#e0e0e0',
     width: '100%',
   },
+  averageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 2,
+  },
   averagesSubtext: {
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
-    marginVertical: 2,
+  },
+  infoButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  infoButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   macrosCard: {
     backgroundColor: '#fff',
